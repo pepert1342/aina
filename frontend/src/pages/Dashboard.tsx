@@ -1,186 +1,912 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { getUpcomingEvents } from '../autoEvents';
+
+interface Business {
+  id: string;
+  business_name: string;
+  business_type: string;
+  tone: string;
+  logo_url?: string;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  event_date: string;
+  event_type: string;
+}
+
+interface AutoEvent {
+  date: Date;
+  title: string;
+  type: string;
+  icon: string;
+  description: string;
+  suggestPost: boolean;
+  daysUntil: number;
+}
 
 function Dashboard() {
   const [user, setUser] = useState<any>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [autoEvents, setAutoEvents] = useState<AutoEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUser(session.user);
-      } else {
-        navigate('/login');
-      }
-      setLoading(false);
-    });
+    checkUser();
+    // Charger les événements automatiques
+    const upcoming = getUpcomingEvents(60); // 60 prochains jours
+    setAutoEvents(upcoming.filter(e => e.suggestPost).slice(0, 5));
+  }, []);
 
-    // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setUser(session.user);
-      } else {
-        navigate('/login');
-      }
-    });
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      navigate('/login');
+      return;
+    }
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    setUser(session.user);
+    await loadData(session.user.id);
+    setLoading(false);
+    setTimeout(() => setIsVisible(true), 100);
+  };
+
+  const loadData = async (userId: string) => {
+    // Charger le commerce
+    const { data: businessData } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (businessData) {
+      setBusiness(businessData);
+    }
+
+    // Charger les événements à venir
+    const { data: eventsData } = await supabase
+      .from('events')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('event_date', new Date().toISOString().split('T')[0])
+      .order('event_date', { ascending: true })
+      .limit(5);
+
+    if (eventsData) {
+      setEvents(eventsData);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Bonjour';
+    if (hour < 18) return 'Bon après-midi';
+    return 'Bonsoir';
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-bg-light to-white flex items-center justify-center">
-        <div className="text-2xl font-bold text-coral">Chargement...</div>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #FAFBFC, #F0F2F5)',
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '16px'
+        }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+            borderRadius: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: '800',
+            fontSize: '24px',
+            animation: 'pulse 1.5s ease-in-out infinite'
+          }}>
+            A
+          </div>
+          <p style={{ color: '#666', fontWeight: '500' }}>Chargement...</p>
+        </div>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-light to-white">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #FAFBFC, #F0F2F5)',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            {/* Logo */}
-            <svg width="120" height="40" viewBox="0 0 120 40" className="h-10">
-              <defs>
-                <linearGradient id="dash-logo" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style={{ stopColor: '#FF6B35', stopOpacity: 1 }} />
-                  <stop offset="100%" style={{ stopColor: '#004E89', stopOpacity: 1 }} />
-                </linearGradient>
-              </defs>
-              <text x="60" y="28" fontFamily="Montserrat, sans-serif" fontSize="32" fontWeight="800" fill="url(#dash-logo)" textAnchor="middle">
-                AiNa
-              </text>
-            </svg>
-
-            {/* User menu */}
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600">👋 {user?.email}</span>
-              <button
-                onClick={handleLogout}
-                className="bg-gray-100 hover:bg-gray-200 text-text-dark px-4 py-2 rounded-lg font-semibold transition-colors"
-              >
-                Déconnexion
-              </button>
+      <header style={{
+        backgroundColor: 'white',
+        borderBottom: '1px solid #E5E7EB',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '16px 32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '44px',
+              height: '44px',
+              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '800',
+              fontSize: '20px'
+            }}>
+              A
             </div>
+            <span style={{ 
+              fontSize: '24px', 
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              AiNa
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 16px',
+              backgroundColor: '#F5F5F7',
+              borderRadius: '50px'
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '14px'
+              }}>
+                {user?.email?.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ color: '#1A1A2E', fontWeight: '500', fontSize: '14px' }}>
+                {user?.email?.split('@')[0]}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'transparent',
+                border: '2px solid #E5E7EB',
+                borderRadius: '10px',
+                color: '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.color = '#FF6B35';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.color = '#666';
+              }}
+            >
+              Déconnexion
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-12">
-        {/* Welcome Card */}
-        <div className="bg-gradient-to-r from-coral to-ocean rounded-2xl p-8 text-white mb-8">
-          <h1 className="text-4xl font-bold mb-2">Bienvenue sur AiNa ! 🎉</h1>
-          <p className="text-xl opacity-90">
-            Votre community manager IA est prêt à travailler pour vous.
-          </p>
+      <main style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        padding: '32px'
+      }}>
+        {/* Welcome Section - Réduit */}
+        <div style={{
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.6s ease-out'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
+            borderRadius: '16px',
+            padding: '20px 28px',
+            marginBottom: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {/* Logo ou initiale */}
+              {business?.logo_url ? (
+                <img 
+                  src={business.logo_url} 
+                  alt="Logo" 
+                  style={{
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '12px',
+                    objectFit: 'cover',
+                    border: '2px solid rgba(255,255,255,0.2)'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: '800',
+                  fontSize: '22px'
+                }}>
+                  {business?.business_name?.charAt(0) || 'A'}
+                </div>
+              )}
+              
+              <div>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '2px' }}>
+                  {getGreeting()} 👋
+                </p>
+                <h1 style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: 'white',
+                  margin: 0
+                }}>
+                  {business?.business_name || 'Bienvenue sur AiNa'}
+                </h1>
+              </div>
+            </div>
+
+            {business ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: '50px',
+                  color: 'rgba(255,255,255,0.9)',
+                  fontSize: '14px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  {business.business_type}
+                </span>
+                <span style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'rgba(255,107,53,0.2)',
+                  borderRadius: '50px',
+                  color: '#FF8F5E',
+                  fontSize: '14px'
+                }}>
+                  {business.tone}
+                </span>
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/onboarding')}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Configurer →
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <button 
-            onClick={() => navigate('/create')}
-            className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-coral/10 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-text-dark mb-2">Nouveau Post</h3>
-            <p className="text-gray-600 mb-4">Créez un post en 30 secondes</p>
-            <span className="text-coral font-semibold hover:text-ocean transition-colors">
-              Créer →
-            </span>
-          </button>
+        <div style={{
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.6s ease-out 0.1s'
+        }}>
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: '700',
+            color: '#1A1A2E',
+            marginBottom: '20px'
+          }}>
+            Actions rapides
+          </h2>
 
-          <button 
-            onClick={() => navigate('/calendar')}
-            className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-ocean/10 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-ocean" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-text-dark mb-2">Calendrier</h3>
-            <p className="text-gray-600 mb-4">Voir vos posts programmés</p>
-            <span className="text-coral font-semibold hover:text-ocean transition-colors">
-              Ouvrir →
-            </span>
-          </button>
-
-          <button 
-            onClick={() => navigate('/onboarding')}
-            className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all text-left"
-          >
-            <div className="w-12 h-12 bg-gold/10 rounded-lg flex items-center justify-center mb-4">
-              <svg className="w-6 h-6 text-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-text-dark mb-2">Mon Profil</h3>
-            <p className="text-gray-600 mb-4">Configurer votre commerce</p>
-            <span className="text-coral font-semibold hover:text-ocean transition-colors">
-              Modifier →
-            </span>
-          </button>
-        </div>
-
-        {/* Next Steps */}
-        <div className="bg-white rounded-2xl p-8 shadow-md">
-          <h2 className="text-2xl font-bold text-text-dark mb-6">🚀 Prochaines étapes</h2>
-          
-          <div className="space-y-4">
-            <button 
-              onClick={() => navigate('/onboarding')}
-              className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1.5fr 1fr',
+            gap: '24px',
+            marginBottom: '40px'
+          }}>
+            {/* Create Post */}
+            <div
+              onClick={() => navigate('/create')}
+              style={{
+                background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                borderRadius: '20px',
+                padding: '28px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(255, 107, 53, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(255, 107, 53, 0.3)';
+              }}
             >
-              <div className="w-8 h-8 bg-coral text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                1
+              <div style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '50%'
+              }} />
+              <div style={{
+                width: '56px',
+                height: '56px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                fontSize: '24px'
+              }}>
+                ✨
               </div>
-              <div>
-                <h3 className="font-bold text-text-dark mb-1">Configurez votre profil</h3>
-                <p className="text-gray-600">Ajoutez les infos de votre commerce, logo et moodboard</p>
-              </div>
-            </button>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '700',
+                color: 'white',
+                marginBottom: '8px'
+              }}>
+                Nouveau Post
+              </h3>
+              <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', marginBottom: '16px', lineHeight: '1.5' }}>
+                Créez un post en décrivant simplement ce que vous voulez
+              </p>
+              <span style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                Créer <span>→</span>
+              </span>
+            </div>
 
-            <button 
+            {/* Calendar - Plus grand et mis en avant */}
+            <div
               onClick={() => navigate('/calendar')}
-              className="w-full flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+              style={{
+                background: 'linear-gradient(135deg, #004E89, #0077CC)',
+                borderRadius: '20px',
+                padding: '28px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(0, 78, 137, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 78, 137, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 78, 137, 0.3)';
+              }}
             >
-              <div className="w-8 h-8 bg-ocean text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                2
+              <div style={{
+                position: 'absolute',
+                top: '-30px',
+                right: '-30px',
+                width: '150px',
+                height: '150px',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '50%'
+              }} />
+              <div style={{
+                position: 'absolute',
+                bottom: '-20px',
+                left: '30%',
+                width: '80px',
+                height: '80px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '50%'
+              }} />
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '20px',
+                    fontSize: '24px'
+                  }}>
+                    📅
+                  </div>
+                  <h3 style={{
+                    fontSize: '20px',
+                    fontWeight: '700',
+                    color: 'white',
+                    marginBottom: '8px'
+                  }}>
+                    Calendrier
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', marginBottom: '16px', lineHeight: '1.5' }}>
+                    Gérez vos événements et planifiez vos publications
+                  </p>
+                  <span style={{
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    Ouvrir le calendrier <span>→</span>
+                  </span>
+                </div>
+                {/* Mini Calendar Preview */}
+                <div style={{
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  backdropFilter: 'blur(10px)'
+                }}>
+                  <div style={{ color: 'white', fontSize: '12px', fontWeight: '600', textAlign: 'center', marginBottom: '8px' }}>
+                    {new Date().toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase()}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                    {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, i) => (
+                      <div key={i} style={{ color: 'rgba(255,255,255,0.6)', fontSize: '8px', textAlign: 'center' }}>{day}</div>
+                    ))}
+                    {Array.from({ length: 28 }, (_, i) => (
+                      <div key={i} style={{ 
+                        width: '16px', 
+                        height: '16px', 
+                        borderRadius: '4px',
+                        backgroundColor: i + 1 === new Date().getDate() ? 'white' : 'transparent',
+                        color: i + 1 === new Date().getDate() ? '#004E89' : 'rgba(255,255,255,0.7)',
+                        fontSize: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: i + 1 === new Date().getDate() ? '700' : '400'
+                      }}>
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-text-dark mb-1">Gérez vos événements</h3>
-                <p className="text-gray-600">Ajoutez des événements et laissez l'IA créer vos posts</p>
-              </div>
-            </button>
+            </div>
 
-            <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg opacity-50">
-              <div className="w-8 h-8 bg-gold text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
-                3
+            {/* Moodboard */}
+            <div
+              onClick={() => navigate('/moodboard')}
+              style={{
+                background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                borderRadius: '20px',
+                padding: '28px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(139, 92, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(139, 92, 246, 0.3)';
+              }}
+            >
+              <div style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '100px',
+                height: '100px',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '50%'
+              }} />
+              <div style={{
+                width: '56px',
+                height: '56px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                fontSize: '24px'
+              }}>
+                🎨
               </div>
-              <div>
-                <h3 className="font-bold text-text-dark mb-1">Créez votre premier post</h3>
-                <p className="text-gray-600">L'IA va générer 3 versions, choisissez votre préférée !</p>
-                <p className="text-xs text-gray-500 mt-1">🔜 Bientôt disponible</p>
-              </div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '700',
+                color: 'white',
+                marginBottom: '8px'
+              }}>
+                Moodboard
+              </h3>
+              <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px', marginBottom: '16px', lineHeight: '1.5' }}>
+                Logo, photos et infos de votre commerce
+              </p>
+              <span style={{
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                Personnaliser <span>→</span>
+              </span>
             </div>
           </div>
         </div>
+
+        {/* Upcoming Events */}
+        <div style={{
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'all 0.6s ease-out 0.2s'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px'
+          }}>
+            <h2 style={{
+              fontSize: '20px',
+              fontWeight: '700',
+              color: '#1A1A2E'
+            }}>
+              Événements à venir
+            </h2>
+            <button
+              onClick={() => navigate('/calendar')}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: 'transparent',
+                border: '2px solid #E5E7EB',
+                borderRadius: '10px',
+                color: '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '14px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.color = '#FF6B35';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.color = '#666';
+              }}
+            >
+              Voir tout →
+            </button>
+          </div>
+
+          {events.length === 0 ? (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '48px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📅</div>
+              <h3 style={{ color: '#1A1A2E', fontWeight: '600', marginBottom: '8px' }}>
+                Aucun événement à venir
+              </h3>
+              <p style={{ color: '#666', marginBottom: '24px' }}>
+                Créez votre premier événement dans le calendrier
+              </p>
+              <button
+                onClick={() => navigate('/calendar')}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Ajouter un événement
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gap: '16px'
+            }}>
+              {events.map((event, index) => (
+                <div
+                  key={event.id}
+                  onClick={() => navigate(`/generate?event=${event.id}`)}
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    border: '2px solid transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateX(8px)';
+                    e.currentTarget.style.borderColor = '#FF6B35';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateX(0)';
+                    e.currentTarget.style.borderColor = 'transparent';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      background: `linear-gradient(135deg, ${
+                        index % 3 === 0 ? '#FF6B35, #FF8F5E' :
+                        index % 3 === 1 ? '#004E89, #0066B3' :
+                        '#10B981, #34D399'
+                      })`,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontWeight: '700',
+                      fontSize: '14px'
+                    }}>
+                      {new Date(event.event_date).getDate()}
+                    </div>
+                    <div>
+                      <h4 style={{ fontWeight: '600', color: '#1A1A2E', marginBottom: '4px' }}>
+                        {event.title}
+                      </h4>
+                      <p style={{ color: '#666', fontSize: '14px' }}>
+                        {new Date(event.event_date).toLocaleDateString('fr-FR', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long'
+                        })}
+                        {' • '}
+                        {event.event_type}
+                      </p>
+                    </div>
+                  </div>
+                  <button style={{
+                    padding: '10px 20px',
+                    background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}>
+                    Générer →
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Suggested Events - Auto Events */}
+        {autoEvents.length > 0 && (
+          <div style={{
+            opacity: isVisible ? 1 : 0,
+            transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
+            transition: 'all 0.6s ease-out 0.3s',
+            marginTop: '32px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '20px'
+            }}>
+              <div>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: '700',
+                  color: '#1A1A2E',
+                  marginBottom: '4px'
+                }}>
+                  💡 Événements à ne pas manquer
+                </h2>
+                <p style={{ color: '#666', fontSize: '14px' }}>
+                  Suggestions de posts pour les prochaines fêtes
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: '16px'
+            }}>
+              {autoEvents.map((event, index) => (
+                <div
+                  key={index}
+                  style={{
+                    backgroundColor: 'white',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    border: '2px solid #F0F0F5',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#FF6B35';
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(255, 107, 53, 0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#F0F0F5';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  onClick={() => navigate('/create')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      background: event.type === 'ferie' 
+                        ? 'linear-gradient(135deg, #3B82F6, #60A5FA)'
+                        : event.type === 'commercial'
+                        ? 'linear-gradient(135deg, #FF6B35, #FF8F5E)'
+                        : event.type === 'fete'
+                        ? 'linear-gradient(135deg, #8B5CF6, #A78BFA)'
+                        : 'linear-gradient(135deg, #10B981, #34D399)',
+                      borderRadius: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '24px',
+                      flexShrink: 0
+                    }}>
+                      {event.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontWeight: '600', color: '#1A1A2E', marginBottom: '4px', fontSize: '16px' }}>
+                        {event.title}
+                      </h4>
+                      <p style={{ color: '#666', fontSize: '13px', marginBottom: '8px' }}>
+                        {event.date.toLocaleDateString('fr-FR', {
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long'
+                        })}
+                      </p>
+                      <div style={{
+                        display: 'inline-block',
+                        padding: '4px 10px',
+                        backgroundColor: event.daysUntil <= 7 ? '#FEE2E2' : event.daysUntil <= 14 ? '#FEF3C7' : '#E0E7FF',
+                        color: event.daysUntil <= 7 ? '#DC2626' : event.daysUntil <= 14 ? '#D97706' : '#4F46E5',
+                        borderRadius: '50px',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {event.daysUntil === 0 ? "Aujourd'hui !" : 
+                         event.daysUntil === 1 ? 'Demain !' :
+                         `Dans ${event.daysUntil} jours`}
+                      </div>
+                    </div>
+                  </div>
+                  <button style={{
+                    width: '100%',
+                    marginTop: '16px',
+                    padding: '12px',
+                    background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}>
+                    ✨ Créer un post
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* CSS */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+      `}</style>
     </div>
   );
 }

@@ -4,77 +4,65 @@ import { supabase } from '../supabase';
 
 function Onboarding() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 6;
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [userId, setUserId] = useState('');
-
-  // États pour stocker les données
+  const [user, setUser] = useState<any>(null);
+  
+  // Form data
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('');
+  const [customBusinessType, setCustomBusinessType] = useState('');
   const [address, setAddress] = useState('');
-  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [phone, setPhone] = useState('');
   const [tone, setTone] = useState('');
-  const [frequency, setFrequency] = useState('');
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState('');
 
-  // Récupérer l'utilisateur connecté
+  const totalSteps = 7;
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setUserId(session.user.id);
-      } else {
-        navigate('/login');
-      }
-    });
-  }, [navigate]);
+    checkUser();
+  }, []);
 
-  const handleNext = async () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      // Fin de l'onboarding - Sauvegarder dans Supabase
-      await saveBusiness();
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate('/login');
+      return;
     }
+    setUser(session.user);
   };
 
-  const saveBusiness = async () => {
-    setLoading(true);
-    setError('');
+  const businessTypes = [
+    { value: 'Restaurant', icon: '🍽️', desc: 'Restaurant, brasserie, café' },
+    { value: 'Bar', icon: '🍸', desc: 'Bar, pub, lounge' },
+    { value: 'Boulangerie', icon: '🥐', desc: 'Boulangerie, pâtisserie' },
+    { value: 'Coiffeur', icon: '💇', desc: 'Salon de coiffure, barbier' },
+    { value: 'Esthétique', icon: '💅', desc: 'Institut de beauté, spa, ongles' },
+    { value: 'Boutique', icon: '🛍️', desc: 'Boutique, commerce de détail' },
+    { value: 'Autre', icon: '✏️', desc: 'Autre type de commerce' }
+  ];
 
-    try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .insert([
-          {
-            user_id: userId,
-            business_name: businessName,
-            business_type: businessType,
-            address: address || null,
-            platforms: platforms.length > 0 ? platforms : null,
-            tone: tone || null,
-            frequency: frequency || null,
-          }
-        ])
-        .select();
+  const tones = [
+    { value: 'Professionnel', icon: '👔', desc: 'Sérieux et corporate', color: '#004E89' },
+    { value: 'Familial', icon: '👨‍👩‍👧‍👦', desc: 'Chaleureux et accueillant', color: '#10B981' },
+    { value: 'Jeune', icon: '🎉', desc: 'Fun et dynamique', color: '#FF6B35' },
+    { value: 'Luxe', icon: '✨', desc: 'Élégant et raffiné', color: '#8B5CF6' },
+    { value: 'Humour', icon: '😄', desc: 'Drôle et décalé', color: '#F59E0B' }
+  ];
 
-      if (error) throw error;
+  const platformOptions = [
+    { value: 'Instagram', icon: '📸', color: '#E4405F' },
+    { value: 'Facebook', icon: '📘', color: '#1877F2' },
+    { value: 'TikTok', icon: '🎵', color: '#000000' }
+  ];
 
-      console.log('Commerce créé :', data);
-      navigate('/dashboard');
-    } catch (error: any) {
-      console.error('Erreur:', error);
-      setError('Erreur lors de la sauvegarde : ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  const keywordSuggestions = [
+    'chaleureux', 'authentique', 'moderne', 'rustique', 'élégant', 
+    'convivial', 'artisanal', 'cosy', 'lumineux', 'naturel',
+    'tendance', 'vintage', 'minimaliste', 'coloré', 'zen'
+  ];
 
   const togglePlatform = (platform: string) => {
     if (platforms.includes(platform)) {
@@ -84,316 +72,800 @@ function Onboarding() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-light to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <svg width="120" height="40" viewBox="0 0 120 40" className="h-10">
-            <defs>
-              <linearGradient id="onboard-logo" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style={{ stopColor: '#FF6B35', stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: '#004E89', stopOpacity: 1 }} />
-              </linearGradient>
-            </defs>
-            <text x="60" y="28" fontFamily="Montserrat, sans-serif" fontSize="32" fontWeight="800" fill="url(#onboard-logo)" textAnchor="middle">
-              AiNa
-            </text>
-          </svg>
-        </div>
-      </header>
+  const addKeyword = () => {
+    if (newKeyword.trim() && !keywords.includes(newKeyword.trim())) {
+      setKeywords([...keywords, newKeyword.trim()]);
+      setNewKeyword('');
+    }
+  };
 
-      {/* Progress Bar */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-text-dark">
-              Étape {currentStep} sur {totalSteps}
-            </span>
-            <span className="text-sm text-gray-600">
-              {Math.round((currentStep / totalSteps) * 100)}% complété
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-gradient-to-r from-coral to-ocean h-3 rounded-full transition-all duration-300"
-              style={{ width: `${(currentStep / totalSteps) * 100}%` }}
+  const removeKeyword = (index: number) => {
+    setKeywords(keywords.filter((_, i) => i !== index));
+  };
+
+  const handleNext = () => {
+    if (step < totalSteps) {
+      setStep(step + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!user) {
+      alert('Erreur: utilisateur non connecté');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Déterminer le type de commerce final
+      const finalBusinessType = businessType === 'Autre' ? customBusinessType : businessType;
+
+      // Vérifier si un business existe déjà
+      const { data: existingBusiness } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingBusiness) {
+        // Update
+        const { error } = await supabase
+          .from('businesses')
+          .update({
+            business_name: businessName,
+            business_type: finalBusinessType,
+            address: address,
+            phone: phone,
+            tone: tone,
+            platforms: platforms,
+            keywords: keywords
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Insert
+        const { error } = await supabase
+          .from('businesses')
+          .insert({
+            user_id: user.id,
+            business_name: businessName,
+            business_type: finalBusinessType,
+            address: address,
+            phone: phone,
+            tone: tone,
+            platforms: platforms,
+            keywords: keywords
+          });
+
+        if (error) throw error;
+      }
+
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de l\'enregistrement: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isStepValid = () => {
+    switch (step) {
+      case 1: return businessName.trim().length > 0;
+      case 2: return businessType !== '' && (businessType !== 'Autre' || customBusinessType.trim().length > 0);
+      case 3: return true; // Optionnel
+      case 4: return true; // Optionnel
+      case 5: return tone !== '';
+      case 6: return platforms.length > 0;
+      case 7: return true; // Mots-clés optionnels
+      default: return false;
+    }
+  };
+
+  const renderStep = () => {
+    switch (step) {
+      case 1:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Comment s'appelle votre commerce ? 🏪
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Ce nom apparaîtra sur vos publications
+            </p>
+            <input
+              type="text"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder="Ex: Le Petit Bistrot"
+              style={{
+                width: '100%',
+                padding: '20px',
+                border: '2px solid #E5E7EB',
+                borderRadius: '16px',
+                fontSize: '18px',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
           </div>
+        );
+
+      case 2:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Quel type de commerce ? 🎯
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Cela nous aide à personnaliser vos contenus
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+              {businessTypes.map((type) => (
+                <div
+                  key={type.value}
+                  onClick={() => setBusinessType(type.value)}
+                  style={{
+                    padding: '18px',
+                    borderRadius: '16px',
+                    border: `2px solid ${businessType === type.value ? '#FF6B35' : '#E5E7EB'}`,
+                    backgroundColor: businessType === type.value ? 'rgba(255, 107, 53, 0.05)' : 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  <div style={{ fontSize: '28px', marginBottom: '10px' }}>{type.icon}</div>
+                  <div style={{ fontWeight: '600', color: '#1A1A2E', marginBottom: '4px' }}>{type.value}</div>
+                  <div style={{ fontSize: '12px', color: '#666' }}>{type.desc}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Champ personnalisé si "Autre" est sélectionné */}
+            {businessType === 'Autre' && (
+              <div style={{ marginTop: '24px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1A1A2E' }}>
+                  Précisez votre métier :
+                </label>
+                <input
+                  type="text"
+                  value={customBusinessType}
+                  onChange={(e) => setCustomBusinessType(e.target.value)}
+                  placeholder="Ex: Fleuriste, Garage auto, Photographe..."
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '2px solid #FF6B35',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    backgroundColor: 'rgba(255, 107, 53, 0.05)'
+                  }}
+                />
+                <p style={{ marginTop: '8px', fontSize: '13px', color: '#666' }}>
+                  💡 L'IA utilisera cette information pour créer du contenu adapté à votre métier
+                </p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 3:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Où êtes-vous situé ? 📍
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Cela aide l'IA à adapter le contenu à votre région et aux événements locaux
+            </p>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Ex: Ajaccio, Corse"
+              style={{
+                width: '100%',
+                padding: '20px',
+                border: '2px solid #E5E7EB',
+                borderRadius: '16px',
+                fontSize: '18px',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            />
+            <div style={{
+              marginTop: '16px',
+              padding: '16px',
+              backgroundColor: '#F0F9FF',
+              borderRadius: '12px',
+              border: '1px solid #BAE6FD'
+            }}>
+              <p style={{ fontSize: '14px', color: '#0369A1', margin: 0 }}>
+                🌍 <strong>Pourquoi c'est important ?</strong><br/>
+                L'IA pourra suggérer des posts liés aux fêtes locales, à la météo, et créer des images qui reflètent l'ambiance de votre région.
+              </p>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Votre numéro de téléphone ? 📞
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Optionnel - Pour les appels à l'action dans vos posts
+            </p>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Ex: 04 95 12 34 56"
+              style={{
+                width: '100%',
+                padding: '20px',
+                border: '2px solid #E5E7EB',
+                borderRadius: '16px',
+                fontSize: '18px',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                boxSizing: 'border-box'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#FF6B35';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+        );
+
+      case 5:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Quel ton pour vos posts ? 🎭
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              L'IA adaptera son style d'écriture à votre personnalité
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
+              {tones.map((t) => (
+                <div
+                  key={t.value}
+                  onClick={() => setTone(t.value)}
+                  style={{
+                    padding: '20px',
+                    borderRadius: '16px',
+                    border: `2px solid ${tone === t.value ? t.color : '#E5E7EB'}`,
+                    backgroundColor: tone === t.value ? `${t.color}10` : 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'center'
+                  }}
+                >
+                  <div style={{ fontSize: '36px', marginBottom: '10px' }}>{t.icon}</div>
+                  <div style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '4px', fontSize: '16px' }}>{t.value}</div>
+                  <div style={{ fontSize: '13px', color: '#666' }}>{t.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Sur quels réseaux publiez-vous ? 📱
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Sélectionnez un ou plusieurs réseaux
+            </p>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+              {platformOptions.map((platform) => (
+                <div
+                  key={platform.value}
+                  onClick={() => togglePlatform(platform.value)}
+                  style={{
+                    padding: '32px 40px',
+                    borderRadius: '20px',
+                    border: `3px solid ${platforms.includes(platform.value) ? platform.color : '#E5E7EB'}`,
+                    backgroundColor: platforms.includes(platform.value) ? `${platform.color}15` : 'white',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    textAlign: 'center',
+                    position: 'relative'
+                  }}
+                >
+                  {platforms.includes(platform.value) && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-10px',
+                      right: '-10px',
+                      width: '28px',
+                      height: '28px',
+                      backgroundColor: platform.color,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '14px'
+                    }}>
+                      ✓
+                    </div>
+                  )}
+                  <div style={{ fontSize: '48px', marginBottom: '12px' }}>{platform.icon}</div>
+                  <div style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '16px' }}>{platform.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 7:
+        return (
+          <div>
+            <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+              Mots-clés pour l'IA 🏷️
+            </h2>
+            <p style={{ color: '#666', marginBottom: '32px' }}>
+              Ces mots guideront l'IA pour créer des images et textes qui vous ressemblent
+            </p>
+
+            {/* Input pour ajouter */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addKeyword();
+                  }
+                }}
+                placeholder="Tapez un mot-clé et appuyez sur Entrée"
+                style={{
+                  flex: 1,
+                  padding: '16px',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#FF6B35';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                }}
+              />
+              <button
+                onClick={addKeyword}
+                style={{
+                  padding: '16px 24px',
+                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                + Ajouter
+              </button>
+            </div>
+
+            {/* Tags affichés */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px', minHeight: '50px' }}>
+              {keywords.length === 0 ? (
+                <p style={{ color: '#999', fontSize: '14px', fontStyle: 'italic' }}>
+                  Aucun mot-clé ajouté pour l'instant
+                </p>
+              ) : (
+                keywords.map((keyword, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 16px',
+                      backgroundColor: '#FF6B3515',
+                      border: '2px solid #FF6B35',
+                      borderRadius: '50px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#FF6B35'
+                    }}
+                  >
+                    {keyword}
+                    <button
+                      onClick={() => removeKeyword(index)}
+                      style={{
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        border: 'none',
+                        backgroundColor: '#FF6B35',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Suggestions */}
+            <div style={{
+              padding: '20px',
+              backgroundColor: '#F8F9FA',
+              borderRadius: '16px'
+            }}>
+              <p style={{ color: '#666', fontSize: '14px', marginBottom: '12px', fontWeight: '600' }}>
+                💡 Suggestions (cliquez pour ajouter) :
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {keywordSuggestions
+                  .filter(s => !keywords.includes(s))
+                  .map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setKeywords([...keywords, suggestion])}
+                      style={{
+                        padding: '8px 14px',
+                        backgroundColor: 'white',
+                        border: '1px dashed #CCC',
+                        borderRadius: '50px',
+                        fontSize: '13px',
+                        color: '#666',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#FF6B35';
+                        e.currentTarget.style.color = '#FF6B35';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#CCC';
+                        e.currentTarget.style.color = '#666';
+                      }}
+                    >
+                      + {suggestion}
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: '20px',
+              padding: '16px',
+              backgroundColor: '#FEF3C7',
+              borderRadius: '12px',
+              border: '1px solid #FCD34D'
+            }}>
+              <p style={{ fontSize: '14px', color: '#92400E', margin: 0 }}>
+                ⭐ <strong>Conseil :</strong> Ajoutez 5 à 10 mots-clés qui décrivent l'ambiance de votre commerce. Vous pourrez les modifier plus tard dans le Moodboard.
+              </p>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
+      {/* Left Side - Progress - NOUVEAU DESIGN CLAIR */}
+      <div style={{
+        width: '320px',
+        background: 'linear-gradient(135deg, #FFF5F2 0%, #FEE2E2 100%)',
+        padding: '40px 32px',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Decorations */}
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          right: '-20%',
+          width: '200px',
+          height: '200px',
+          background: 'radial-gradient(circle, rgba(255,107,53,0.2) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '20%',
+          left: '-10%',
+          width: '150px',
+          height: '150px',
+          background: 'radial-gradient(circle, rgba(0,78,137,0.15) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px', position: 'relative', zIndex: 1 }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: '800',
+            fontSize: '22px',
+            boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
+          }}>
+            A
+          </div>
+          <span style={{ 
+            fontSize: '28px', 
+            fontWeight: '800',
+            background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent'
+          }}>
+            AiNa
+          </span>
         </div>
 
-        {/* Contenu des étapes */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
-          {/* ÉTAPE 1 : Infos de base */}
-          {currentStep === 1 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                Parlez-nous de votre commerce 🏪
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Ces informations nous aideront à personnaliser vos posts
-              </p>
-
-              <div className="space-y-6">
-                {/* Nom du commerce */}
-                <div>
-                  <label className="block text-sm font-semibold text-text-dark mb-2">
-                    Nom de votre commerce *
-                  </label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="Ex: Restaurant Le Méditerranée"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral focus:outline-none transition-colors"
-                  />
-                </div>
-
-                {/* Type de commerce */}
-                <div>
-                  <label className="block text-sm font-semibold text-text-dark mb-2">
-                    Type de commerce *
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {['Restaurant', 'Bar', 'Café', 'Coiffeur', 'Salon esthétique', 'Commerce'].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => setBusinessType(type)}
-                        style={{
-                          borderColor: businessType === type ? '#FF6B35' : '#e5e7eb',
-                          backgroundColor: businessType === type ? 'rgba(255, 107, 53, 0.1)' : 'white',
-                          color: businessType === type ? '#FF6B35' : '#2C3E50'
-                        }}
-                        className="p-4 rounded-lg border-2 font-semibold transition-all hover:border-coral"
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Adresse */}
-                <div>
-                  <label className="block text-sm font-semibold text-text-dark mb-2">
-                    Adresse *
-                  </label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Ex: 12 Rue Bonaparte, 20000 Ajaccio"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral focus:outline-none transition-colors"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Pour détecter les événements locaux près de chez vous
-                  </p>
-                </div>
+        {/* Progress Steps */}
+        <div style={{ flex: 1, position: 'relative', zIndex: 1 }}>
+          {[
+            { num: 1, title: 'Nom du commerce' },
+            { num: 2, title: 'Type de commerce' },
+            { num: 3, title: 'Localisation' },
+            { num: 4, title: 'Téléphone' },
+            { num: 5, title: 'Ton de communication' },
+            { num: 6, title: 'Réseaux sociaux' },
+            { num: 7, title: 'Mots-clés IA' }
+          ].map((s, index) => (
+            <div key={s.num} style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                backgroundColor: step >= s.num ? '#FF6B35' : 'white',
+                border: step >= s.num ? 'none' : '2px solid #E5E7EB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: step >= s.num ? 'white' : '#999',
+                fontWeight: '700',
+                marginRight: '14px',
+                transition: 'all 0.3s ease',
+                fontSize: '14px',
+                boxShadow: step >= s.num ? '0 4px 10px rgba(255, 107, 53, 0.3)' : 'none'
+              }}>
+                {step > s.num ? '✓' : s.num}
               </div>
+              <span style={{
+                color: step >= s.num ? '#1A1A2E' : '#999',
+                fontWeight: step === s.num ? '600' : '400',
+                transition: 'all 0.3s ease',
+                fontSize: '14px'
+              }}>
+                {s.title}
+              </span>
             </div>
-          )}
+          ))}
+        </div>
 
-          {/* ÉTAPE 2 : Plateformes */}
-          {currentStep === 2 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                Où voulez-vous publier ? 📱
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Sélectionnez une ou plusieurs plateformes
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Instagram */}
-                <button
-                  onClick={() => togglePlatform('Instagram')}
-                  style={{
-                    borderColor: platforms.includes('Instagram') ? '#FF6B35' : '#e5e7eb',
-                    backgroundColor: platforms.includes('Instagram') ? 'rgba(255, 107, 53, 0.1)' : 'white'
-                  }}
-                  className="p-6 rounded-xl border-2 transition-all hover:border-coral"
-                >
-                  <div className="text-5xl mb-4">📷</div>
-                  <h3 className="text-xl font-bold text-text-dark mb-2">Instagram</h3>
-                  <p className="text-gray-600 text-sm">
-                    Posts & Stories visuels
-                  </p>
-                </button>
-
-                {/* Facebook */}
-                <button
-                  onClick={() => togglePlatform('Facebook')}
-                  style={{
-                    borderColor: platforms.includes('Facebook') ? '#FF6B35' : '#e5e7eb',
-                    backgroundColor: platforms.includes('Facebook') ? 'rgba(255, 107, 53, 0.1)' : 'white'
-                  }}
-                  className="p-6 rounded-xl border-2 transition-all hover:border-coral"
-                >
-                  <div className="text-5xl mb-4">👍</div>
-                  <h3 className="text-xl font-bold text-text-dark mb-2">Facebook</h3>
-                  <p className="text-gray-600 text-sm">
-                    Communauté locale
-                  </p>
-                </button>
-
-                {/* TikTok */}
-                <button
-                  onClick={() => togglePlatform('TikTok')}
-                  style={{
-                    borderColor: platforms.includes('TikTok') ? '#FF6B35' : '#e5e7eb',
-                    backgroundColor: platforms.includes('TikTok') ? 'rgba(255, 107, 53, 0.1)' : 'white'
-                  }}
-                  className="p-6 rounded-xl border-2 transition-all hover:border-coral"
-                >
-                  <div className="text-5xl mb-4">🎵</div>
-                  <h3 className="text-xl font-bold text-text-dark mb-2">TikTok</h3>
-                  <p className="text-gray-600 text-sm">
-                    Vidéos courtes
-                  </p>
-                </button>
-              </div>
-
-              <p className="text-sm text-gray-500 mt-6 text-center">
-                {platforms.length} plateforme(s) sélectionnée(s)
-              </p>
-            </div>
-          )}
-
-          {/* ÉTAPE 3 : Upload (simplifié pour l'instant) */}
-          {currentStep === 3 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                Votre identité visuelle 🎨
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Logo et photos de votre commerce (on configurera ça plus tard)
-              </p>
-
-              <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
-                <div className="text-6xl mb-4">📸</div>
-                <p className="text-gray-600">
-                  Fonctionnalité d'upload à venir prochainement
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Pour l'instant, passez à l'étape suivante
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 4 : Couleurs (simplifié) */}
-          {currentStep === 4 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                Couleurs de marque 🎨
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Fonctionnalité à venir prochainement
-              </p>
-
-              <div className="bg-gray-50 rounded-xl p-8 text-center">
-                <p className="text-gray-600">
-                  Color picker à implémenter dans les prochaines sessions
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 5 : Ton */}
-          {currentStep === 5 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                Quel est votre style ? 💬
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Comment voulez-vous communiquer avec vos clients ?
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { value: 'Familial', emoji: '🏠', desc: 'Chaleureux et convivial' },
-                  { value: 'Professionnel', emoji: '💼', desc: 'Sérieux et expert' },
-                  { value: 'Jeune', emoji: '✨', desc: 'Dynamique et tendance' },
-                  { value: 'Élégant', emoji: '🎩', desc: 'Raffiné et premium' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setTone(option.value)}
-                    style={{
-                      borderColor: tone === option.value ? '#FF6B35' : '#e5e7eb',
-                      backgroundColor: tone === option.value ? 'rgba(255, 107, 53, 0.1)' : 'white'
-                    }}
-                    className="p-6 rounded-xl border-2 text-left transition-all hover:border-coral"
-                  >
-                    <div className="text-4xl mb-2">{option.emoji}</div>
-                    <h3 className="text-xl font-bold text-text-dark mb-1">{option.value}</h3>
-                    <p className="text-gray-600 text-sm">{option.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ÉTAPE 6 : Fréquence */}
-          {currentStep === 6 && (
-            <div>
-              <h2 className="text-3xl font-bold text-text-dark mb-2">
-                À quelle fréquence publier ? 📅
-              </h2>
-              <p className="text-gray-600 mb-8">
-                Nous vous proposerons des posts selon ce rythme
-              </p>
-
-              <div className="space-y-4">
-                {[
-                  { value: '2/semaine', label: '2 posts par semaine', desc: 'Idéal pour commencer' },
-                  { value: '3/semaine', label: '3 posts par semaine', desc: 'Bon équilibre' },
-                  { value: '5/semaine', label: '5 posts par semaine', desc: 'Présence active' },
-                  { value: 'quotidien', label: 'Tous les jours', desc: 'Visibilité maximale' },
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setFrequency(option.value)}
-                    style={{
-                      borderColor: frequency === option.value ? '#FF6B35' : '#e5e7eb',
-                      backgroundColor: frequency === option.value ? 'rgba(255, 107, 53, 0.1)' : 'white'
-                    }}
-                    className="w-full p-6 rounded-xl border-2 text-left transition-all hover:border-coral"
-                  >
-                    <h3 className="text-xl font-bold text-text-dark mb-1">{option.label}</h3>
-                    <p className="text-gray-600 text-sm">{option.desc}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Message d'erreur */}
-          {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Boutons Navigation */}
-          <div className="flex justify-between mt-12 pt-8 border-t">
-            <button
-              onClick={handlePrevious}
-              disabled={currentStep === 1 || loading}
-              className="px-6 py-3 border-2 border-gray-200 rounded-lg font-semibold text-text-dark hover:border-coral transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Précédent
-            </button>
-
-            <button
-              onClick={handleNext}
-              disabled={loading}
-              className="px-8 py-3 bg-gradient-to-r from-coral to-ocean text-white rounded-lg font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Sauvegarde...' : (currentStep === totalSteps ? 'Terminer 🎉' : 'Suivant →')}
-            </button>
+        {/* Progress Bar */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{
+            height: '8px',
+            backgroundColor: 'rgba(255,255,255,0.8)',
+            borderRadius: '4px',
+            overflow: 'hidden',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{
+              height: '100%',
+              width: `${(step / totalSteps) * 100}%`,
+              background: 'linear-gradient(90deg, #FF6B35, #FF8F5E)',
+              borderRadius: '4px',
+              transition: 'width 0.5s ease'
+            }} />
           </div>
+          <p style={{ color: '#666', marginTop: '12px', fontSize: '14px' }}>
+            Étape {step} sur {totalSteps}
+          </p>
         </div>
       </div>
+
+      {/* Right Side - Form */}
+      <div style={{
+        flex: 1,
+        backgroundColor: 'white',
+        padding: '48px 64px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
+      }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto', width: '100%' }}>
+          {/* Step Content */}
+          <div style={{
+            animation: 'fadeIn 0.3s ease-out'
+          }}>
+            {renderStep()}
+          </div>
+
+          {/* Navigation Buttons */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: '48px'
+          }}>
+            {step > 1 ? (
+              <button
+                onClick={handleBack}
+                style={{
+                  padding: '16px 32px',
+                  backgroundColor: 'transparent',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '12px',
+                  color: '#666',
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#1A1A2E';
+                  e.currentTarget.style.color = '#1A1A2E';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  e.currentTarget.style.color = '#666';
+                }}
+              >
+                ← Retour
+              </button>
+            ) : (
+              <div />
+            )}
+
+            {step < totalSteps ? (
+              <button
+                onClick={handleNext}
+                disabled={!isStepValid()}
+                style={{
+                  padding: '16px 32px',
+                  background: isStepValid() 
+                    ? 'linear-gradient(135deg, #FF6B35, #FF8F5E)' 
+                    : '#E5E7EB',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: isStepValid() ? 'white' : '#999',
+                  fontWeight: '600',
+                  fontSize: '16px',
+                  cursor: isStepValid() ? 'pointer' : 'not-allowed',
+                  boxShadow: isStepValid() ? '0 4px 15px rgba(255, 107, 53, 0.4)' : 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Continuer →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!isStepValid() || loading}
+                style={{
+                  padding: '16px 40px',
+                  background: isStepValid() && !loading
+                    ? 'linear-gradient(135deg, #10B981, #34D399)' 
+                    : '#E5E7EB',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: isStepValid() && !loading ? 'white' : '#999',
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  cursor: isStepValid() && !loading ? 'pointer' : 'not-allowed',
+                  boxShadow: isStepValid() && !loading ? '0 4px 15px rgba(16, 185, 129, 0.4)' : 'none',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {loading ? '⏳ Enregistrement...' : '✓ Terminer la configuration'}
+              </button>
+            )}
+          </div>
+
+          {/* Skip Button for Optional Steps */}
+          {(step === 3 || step === 4 || step === 7) && (
+            <button
+              onClick={step === 7 ? handleSubmit : handleNext}
+              style={{
+                display: 'block',
+                margin: '16px auto 0',
+                padding: '8px 16px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: '#999',
+                fontWeight: '500',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              {step === 7 ? 'Passer et terminer →' : 'Passer cette étape →'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* CSS */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        input::placeholder {
+          color: #999;
+        }
+      `}</style>
     </div>
   );
 }

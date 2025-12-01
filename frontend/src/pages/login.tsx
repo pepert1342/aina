@@ -1,140 +1,510 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabase';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const navigate = useNavigate();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setError('');
+    setSuccess('');
+
+    if (!isLogin && password !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas');
+      setLoading(false);
+      return;
+    }
 
     try {
-      if (isSignUp) {
-        // Inscription
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        setMessage('✅ Compte créé ! Vérifiez votre email pour confirmer.');
-      } else {
-        // Connexion
+      if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-        setMessage('✅ Connexion réussie !');
+        navigate('/dashboard');
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        setSuccess('Compte créé ! Vérifiez votre email pour confirmer.');
       }
     } catch (error: any) {
-      setMessage('❌ Erreur : ' + error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-bg-light to-white flex items-center justify-center px-4">
-      <div className="max-w-md w-full">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <svg width="120" height="40" viewBox="0 0 120 40" className="h-12 mx-auto mb-4">
-            <defs>
-              <linearGradient id="login-logo" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" style={{ stopColor: '#FF6B35', stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: '#004E89', stopOpacity: 1 }} />
-              </linearGradient>
-            </defs>
-            <text x="60" y="28" fontFamily="Montserrat, sans-serif" fontSize="32" fontWeight="800" fill="url(#login-logo)" textAnchor="middle">
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    }}>
+      {/* Left Side - Form */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '48px',
+        backgroundColor: 'white'
+      }}>
+        <div style={{ width: '100%', maxWidth: '420px' }}>
+          {/* Logo */}
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px', 
+              marginBottom: '48px',
+              cursor: 'pointer'
+            }}
+            onClick={() => navigate('/')}
+          >
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              borderRadius: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: '800',
+              fontSize: '22px',
+              boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
+            }}>
+              A
+            </div>
+            <span style={{ 
+              fontSize: '28px', 
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
               AiNa
-            </text>
-          </svg>
-          <h1 className="text-3xl font-bold text-text-dark">
-            {isSignUp ? 'Créer un compte' : 'Connexion'}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {isSignUp ? 'Commencez gratuitement' : 'Bon retour parmi nous !'}
-          </p>
-        </div>
+            </span>
+          </div>
 
-        {/* Formulaire */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleAuth} className="space-y-6">
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-text-dark mb-2">
+          {/* Title */}
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '800',
+            color: '#1A1A2E',
+            marginBottom: '8px'
+          }}>
+            {isLogin ? 'Bon retour ! 👋' : 'Créer un compte ✨'}
+          </h1>
+          <p style={{
+            color: '#666',
+            marginBottom: '32px',
+            fontSize: '16px'
+          }}>
+            {isLogin 
+              ? 'Connectez-vous pour accéder à votre espace' 
+              : 'Rejoignez AiNa et boostez votre communication'}
+          </p>
+
+          {/* Toggle */}
+          <div style={{
+            display: 'flex',
+            backgroundColor: '#F5F5F7',
+            borderRadius: '12px',
+            padding: '4px',
+            marginBottom: '32px'
+          }}>
+            <button
+              onClick={() => { setIsLogin(true); setError(''); setSuccess(''); }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: isLogin ? 'white' : 'transparent',
+                color: isLogin ? '#1A1A2E' : '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: isLogin ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              Connexion
+            </button>
+            <button
+              onClick={() => { setIsLogin(false); setError(''); setSuccess(''); }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                borderRadius: '10px',
+                border: 'none',
+                backgroundColor: !isLogin ? 'white' : 'transparent',
+                color: !isLogin ? '#1A1A2E' : '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: !isLogin ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              Inscription
+            </button>
+          </div>
+
+          {/* Error/Success Messages */}
+          {error && (
+            <div style={{
+              backgroundColor: '#FEE2E2',
+              border: '1px solid #FECACA',
+              color: '#DC2626',
+              padding: '14px 16px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span>⚠️</span>
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div style={{
+              backgroundColor: '#D1FAE5',
+              border: '1px solid #A7F3D0',
+              color: '#059669',
+              padding: '14px 16px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span>✅</span>
+              {success}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                fontSize: '14px'
+              }}>
                 Email
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral focus:outline-none transition-colors"
                 placeholder="votre@email.com"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  outline: 'none',
+                  transition: 'all 0.3s ease',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#FF6B35';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
             </div>
 
-            {/* Mot de passe */}
-            <div>
-              <label className="block text-sm font-semibold text-text-dark mb-2">
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                fontSize: '14px'
+              }}>
                 Mot de passe
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-coral focus:outline-none transition-colors"
                 placeholder="••••••••"
+                required
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  outline: 'none',
+                  transition: 'all 0.3s ease',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#FF6B35';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E5E7EB';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
               />
-              <p className="text-xs text-gray-500 mt-1">Minimum 6 caractères</p>
             </div>
 
-            {/* Message */}
-            {message && (
-              <div className={`p-4 rounded-lg ${message.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                {message}
+            {!isLogin && (
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: '#1A1A2E',
+                  fontSize: '14px'
+                }}>
+                  Confirmer le mot de passe
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    outline: 'none',
+                    transition: 'all 0.3s ease',
+                    boxSizing: 'border-box'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#FF6B35';
+                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
               </div>
             )}
 
-            {/* Bouton Submit */}
+            {isLogin && (
+              <div style={{
+                textAlign: 'right',
+                marginBottom: '24px'
+              }}>
+                <a href="#" style={{
+                  color: '#FF6B35',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}>
+                  Mot de passe oublié ?
+                </a>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-coral to-ocean text-white py-3 rounded-lg font-bold text-lg hover:shadow-xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                width: '100%',
+                padding: '18px',
+                background: loading 
+                  ? '#ccc' 
+                  : 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '16px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: loading ? 'none' : '0 4px 15px rgba(255, 107, 53, 0.4)',
+                transition: 'all 0.3s ease',
+                marginTop: !isLogin ? '24px' : '0'
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 107, 53, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = loading ? 'none' : '0 4px 15px rgba(255, 107, 53, 0.4)';
+              }}
             >
-              {loading ? 'Chargement...' : (isSignUp ? 'Créer mon compte' : 'Se connecter')}
+              {loading 
+                ? '⏳ Chargement...' 
+                : isLogin 
+                  ? 'Se connecter →' 
+                  : 'Créer mon compte →'}
             </button>
           </form>
 
-          {/* Toggle Sign up / Login */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setMessage('');
+          {/* Footer */}
+          <p style={{
+            textAlign: 'center',
+            marginTop: '32px',
+            color: '#666',
+            fontSize: '14px'
+          }}>
+            {isLogin ? "Pas encore de compte ? " : "Déjà un compte ? "}
+            <span
+              onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
+              style={{
+                color: '#FF6B35',
+                fontWeight: '600',
+                cursor: 'pointer'
               }}
-              className="text-coral hover:text-ocean font-semibold transition-colors"
             >
-              {isSignUp ? 'Déjà un compte ? Se connecter' : 'Pas de compte ? S\'inscrire'}
-            </button>
-          </div>
-        </div>
-
-        {/* Retour accueil */}
-        <div className="text-center mt-6">
-          <a href="/" className="text-gray-600 hover:text-coral transition-colors">
-            ← Retour à l'accueil
-          </a>
+              {isLogin ? "S'inscrire" : "Se connecter"}
+            </span>
+          </p>
         </div>
       </div>
+
+      {/* Right Side - Visual */}
+      <div style={{
+        flex: 1,
+        background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '48px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background Orbs */}
+        <div style={{
+          position: 'absolute',
+          top: '10%',
+          right: '10%',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(255,107,53,0.2) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '10%',
+          left: '10%',
+          width: '250px',
+          height: '250px',
+          background: 'radial-gradient(circle, rgba(0,78,137,0.2) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+
+        {/* Content */}
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          textAlign: 'center',
+          maxWidth: '500px'
+        }}>
+          {/* Illustration */}
+          <div style={{
+            width: '200px',
+            height: '200px',
+            margin: '0 auto 40px',
+            background: 'linear-gradient(135deg, rgba(255,107,53,0.2), rgba(0,78,137,0.2))',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '80px'
+          }}>
+            {isLogin ? '🚀' : '✨'}
+          </div>
+
+          <h2 style={{
+            fontSize: '32px',
+            fontWeight: '800',
+            color: 'white',
+            marginBottom: '16px'
+          }}>
+            {isLogin 
+              ? 'Prêt à créer du contenu incroyable ?' 
+              : 'Rejoignez 500+ commerces'}
+          </h2>
+          
+          <p style={{
+            fontSize: '18px',
+            color: 'rgba(255,255,255,0.7)',
+            lineHeight: '1.6',
+            marginBottom: '40px'
+          }}>
+            {isLogin 
+              ? 'Connectez-vous et laissez l\'IA générer vos posts en quelques secondes.' 
+              : 'Qui utilisent déjà AiNa pour révolutionner leur communication sur les réseaux sociaux.'}
+          </p>
+
+          {/* Features List */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            textAlign: 'left'
+          }}>
+            {[
+              { icon: '✨', text: 'Génération de textes par IA' },
+              { icon: '🎨', text: 'Création d\'images automatique' },
+              { icon: '📅', text: 'Calendrier d\'événements intégré' }
+            ].map((feature, index) => (
+              <div key={index} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                padding: '14px 20px',
+                borderRadius: '12px',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <span style={{ fontSize: '20px' }}>{feature.icon}</span>
+                <span style={{ color: 'white', fontWeight: '500' }}>{feature.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CSS */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        input::placeholder {
+          color: #999;
+        }
+      `}</style>
     </div>
   );
 }

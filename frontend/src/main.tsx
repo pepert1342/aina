@@ -9,6 +9,7 @@ import Onboarding from './pages/Onboarding.tsx'
 import CalendarPage from './pages/Calendar.tsx'
 import GeneratePost from './pages/GeneratePost.tsx'
 import CreatePost from './pages/CreatePost.tsx'
+import Moodboard from './pages/Moodboard.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -21,6 +22,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/generate" element={<GeneratePost />} />
         <Route path="/create" element={<CreatePost />} />
+        <Route path="/moodboard" element={<Moodboard />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
