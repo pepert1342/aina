@@ -89,7 +89,7 @@ function Dashboard() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <button 
-            onClick={() => navigate('/calendar')}
+            onClick={() => navigate('/create')}
             className="bg-white rounded-xl p-6 shadow-md hover:shadow-xl transition-all text-left"
           >
             <div className="w-12 h-12 bg-coral/10 rounded-lg flex items-center justify-center mb-4">

@@ -1,10 +1,11 @@
-// Configuration Gemini API - Utilisation directe de fetch
+// Configuration Gemini API
 const GEMINI_API_KEY = 'AIzaSyCgsJKZROIcOF_Di7As4XX4dRIMWjGFFfE';
-const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const TEXT_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 
-// Fonction pour appeler l'API Gemini directement
+// Fonction pour appeler l'API Gemini pour le texte
 async function callGemini(prompt: string): Promise<string> {
-  const response = await fetch(`${API_URL}?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`${TEXT_API_URL}?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -26,6 +27,55 @@ async function callGemini(prompt: string): Promise<string> {
 
   const data = await response.json();
   return data.candidates[0].content.parts[0].text;
+}
+
+// Fonction pour générer une image avec Gemini
+export async function generateImage(
+  businessName: string,
+  businessType: string,
+  eventTitle: string,
+  eventDescription: string,
+  tone: string
+): Promise<string> {
+  
+  const imagePrompt = `Generate a professional social media image for a ${businessType} called "${businessName}". 
+The image is for an event: "${eventTitle}". 
+${eventDescription ? `Description: ${eventDescription}.` : ''}
+Style: ${tone}, warm Mediterranean colors, professional food/restaurant photography style.
+The image should be appetizing, inviting, and suitable for Instagram.
+Do NOT include any text in the image.`;
+
+  const response = await fetch(`${IMAGE_API_URL}?key=${GEMINI_API_KEY}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{
+          text: imagePrompt
+        }]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('Image API Error:', error);
+    throw new Error(error.error?.message || 'Erreur génération image');
+  }
+
+  const data = await response.json();
+  
+  // Chercher l'image dans la réponse
+  const parts = data.candidates[0].content.parts;
+  for (const part of parts) {
+    if (part.inlineData) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  
+  throw new Error('Aucune image générée');
 }
 
 // Fonction pour générer un texte de post
@@ -66,15 +116,12 @@ Format de réponse (respecte exactement ce format) :
 
   try {
     const text = await callGemini(prompt);
-
-    // Parser les 3 versions
     const versions = text.split(/---VERSION \d---/).filter(v => v.trim());
     
     if (versions.length >= 3) {
       return versions.slice(0, 3).map(v => v.trim());
     }
     
-    // Si le parsing échoue, retourner le texte brut
     return [text, '', ''];
   } catch (error) {
     console.error('Erreur génération texte:', error);
@@ -82,7 +129,6 @@ Format de réponse (respecte exactement ce format) :
   }
 }
 
-// Fonction pour générer une description d'image (prompt pour image)
 export async function generateImagePrompt(
   businessName: string,
   businessType: string,
@@ -90,25 +136,7 @@ export async function generateImagePrompt(
   eventDescription: string,
   tone: string
 ): Promise<string> {
-  const prompt = `Tu es un expert en création de visuels pour les réseaux sociaux.
-
-Génère une description détaillée pour créer une image de post Instagram/Facebook pour :
-
-**Commerce :** ${businessName} (${businessType})
-**Événement :** ${eventTitle}
-**Description :** ${eventDescription || 'Aucune description'}
-**Ambiance souhaitée :** ${tone}
-
-Règles pour la description d'image :
-- Style photographique professionnel
-- Couleurs chaleureuses et méditerranéennes
-- Ambiance ${tone.toLowerCase()}
-- Format carré (1:1) pour Instagram
-- Pas de texte sur l'image
-- Description en anglais pour meilleure génération
-
-Réponds UNIQUEMENT avec la description de l'image en anglais, rien d'autre.
-`;
+  const prompt = `Génère une description d'image en anglais pour : ${businessName} (${businessType}) - ${eventTitle}. Style: ${tone}.`;
 
   try {
     return await callGemini(prompt);
