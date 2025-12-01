@@ -7,6 +7,7 @@ import Login from './pages/Login.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Onboarding from './pages/Onboarding.tsx'
 import CalendarPage from './pages/Calendar.tsx'
+import GeneratePost from './pages/GeneratePost.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -17,6 +18,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/generate" element={<GeneratePost />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
