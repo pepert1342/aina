@@ -770,6 +770,41 @@ function Moodboard() {
         input::placeholder {
           color: #999;
         }
+        
+        @media (max-width: 768px) {
+          .moodboard-header {
+            padding: 12px 16px !important;
+          }
+          
+          .moodboard-nav {
+            display: none !important;
+          }
+          
+          .moodboard-main {
+            padding: 16px !important;
+          }
+          
+          .moodboard-title {
+            font-size: 24px !important;
+          }
+          
+          .moodboard-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+          
+          .moodboard-card {
+            padding: 20px !important;
+          }
+          
+          .moodboard-photos-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          
+          .moodboard-keywords {
+            flex-wrap: wrap !important;
+          }
+        }
       `}</style>
     </div>
   );

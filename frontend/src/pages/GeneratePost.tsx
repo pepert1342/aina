@@ -792,6 +792,57 @@ function GeneratePost() {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.05); opacity: 0.8; }
         }
+        
+        @media (max-width: 768px) {
+          .generate-header {
+            padding: 12px 16px !important;
+          }
+          
+          .generate-nav {
+            display: none !important;
+          }
+          
+          .generate-main {
+            padding: 16px !important;
+          }
+          
+          .generate-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          
+          .generate-banner {
+            flex-direction: column !important;
+            text-align: center !important;
+            padding: 20px !important;
+          }
+          
+          .generate-platforms {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .generate-platform-btn {
+            width: 100% !important;
+          }
+          
+          .generate-formats {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .generate-actions {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .generate-action-btn {
+            width: 100% !important;
+          }
+          
+          .generate-results {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
     </div>
   );

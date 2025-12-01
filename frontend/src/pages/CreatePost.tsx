@@ -809,6 +809,55 @@ function CreatePost() {
         textarea::placeholder {
           color: #999;
         }
+        
+        @media (max-width: 768px) {
+          .create-header {
+            padding: 12px 16px !important;
+          }
+          
+          .create-nav {
+            display: none !important;
+          }
+          
+          .create-main {
+            padding: 16px !important;
+          }
+          
+          .create-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          
+          .create-banner {
+            padding: 20px !important;
+          }
+          
+          .create-platforms {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .create-platform-btn {
+            width: 100% !important;
+          }
+          
+          .create-formats {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .create-actions {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .create-action-btn {
+            width: 100% !important;
+          }
+          
+          .create-results {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
     </div>
   );

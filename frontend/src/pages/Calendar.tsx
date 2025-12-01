@@ -947,6 +947,61 @@ function CalendarPage() {
           display: flex;
           gap: 4px;
         }
+        
+        @media (max-width: 768px) {
+          .calendar-header {
+            padding: 12px 16px !important;
+          }
+          
+          .calendar-header-content {
+            flex-wrap: wrap !important;
+            gap: 12px !important;
+          }
+          
+          .calendar-nav {
+            display: none !important;
+          }
+          
+          .calendar-main {
+            padding: 16px !important;
+          }
+          
+          .calendar-title {
+            font-size: 24px !important;
+          }
+          
+          .calendar-legend {
+            display: none !important;
+          }
+          
+          .rbc-toolbar {
+            flex-direction: column !important;
+            gap: 12px !important;
+            padding: 12px !important;
+          }
+          
+          .rbc-toolbar button {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+          }
+          
+          .rbc-toolbar-label {
+            font-size: 16px !important;
+          }
+          
+          .calendar-modal {
+            margin: 16px !important;
+            padding: 24px 20px !important;
+          }
+          
+          .calendar-modal-buttons {
+            flex-direction: column !important;
+          }
+          
+          .event-types-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
       `}</style>
     </div>
   );

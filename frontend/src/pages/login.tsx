@@ -48,21 +48,27 @@ function Login() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-    }}>
-      {/* Left Side - Form */}
-      <div style={{
-        flex: 1,
+    <div 
+      className="login-container"
+      style={{
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '48px',
-        backgroundColor: 'white'
-      }}>
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+      }}
+    >
+      {/* Left Side - Form */}
+      <div 
+        className="login-left"
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '48px 24px',
+          backgroundColor: 'white'
+        }}
+      >
         <div style={{ width: '100%', maxWidth: '420px' }}>
           {/* Logo */}
           <div 
@@ -393,11 +399,13 @@ function Login() {
       </div>
 
       {/* Right Side - Visual */}
-      <div style={{
-        flex: 1,
-        background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
-        display: 'flex',
-        flexDirection: 'column',
+      <div 
+        className="login-right"
+        style={{
+          flex: 1,
+          background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
+          display: 'flex',
+          flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         padding: '48px',
@@ -433,67 +441,74 @@ function Login() {
         }}>
           {/* Illustration */}
           <div style={{
-            width: '200px',
-            height: '200px',
-            margin: '0 auto 40px',
+            width: '180px',
+            height: '180px',
+            margin: '0 auto 32px',
             background: 'linear-gradient(135deg, rgba(255,107,53,0.2), rgba(0,78,137,0.2))',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '80px'
+            fontSize: '72px'
           }}>
-            {isLogin ? '🚀' : '✨'}
+            🤖
           </div>
 
           <h2 style={{
-            fontSize: '32px',
+            fontSize: '28px',
             fontWeight: '800',
             color: 'white',
-            marginBottom: '16px'
+            marginBottom: '16px',
+            lineHeight: '1.3'
           }}>
-            {isLogin 
-              ? 'Prêt à créer du contenu incroyable ?' 
-              : 'Rejoignez 500+ commerces'}
+            Votre Community Manager IA est prêt ! ✨
           </h2>
           
           <p style={{
             fontSize: '18px',
-            color: 'rgba(255,255,255,0.7)',
+            color: 'rgba(255,255,255,0.8)',
             lineHeight: '1.6',
             marginBottom: '40px'
           }}>
-            {isLogin 
-              ? 'Connectez-vous et laissez l\'IA générer vos posts en quelques secondes.' 
-              : 'Qui utilisent déjà AiNa pour révolutionner leur communication sur les réseaux sociaux.'}
+            Décrivez simplement ce que vous voulez, et laissez l'IA créer vos posts en quelques secondes.
           </p>
 
           {/* Features List */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
+            gap: '14px',
             textAlign: 'left'
           }}>
             {[
-              { icon: '✨', text: 'Génération de textes par IA' },
-              { icon: '🎨', text: 'Création d\'images automatique' },
-              { icon: '📅', text: 'Calendrier d\'événements intégré' }
+              { icon: '✨', text: 'Génération de textes percutants' },
+              { icon: '🎨', text: 'Création d\'images uniques' },
+              { icon: '📅', text: 'Planification de vos événements' },
+              { icon: '⚡', text: 'Résultats en 30 secondes' }
             ].map((feature, index) => (
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '14px',
                 backgroundColor: 'rgba(255,255,255,0.1)',
-                padding: '14px 20px',
-                borderRadius: '12px',
+                padding: '16px 20px',
+                borderRadius: '14px',
                 backdropFilter: 'blur(10px)'
               }}>
-                <span style={{ fontSize: '20px' }}>{feature.icon}</span>
-                <span style={{ color: 'white', fontWeight: '500' }}>{feature.text}</span>
+                <span style={{ fontSize: '22px' }}>{feature.icon}</span>
+                <span style={{ color: 'white', fontWeight: '500', fontSize: '15px' }}>{feature.text}</span>
               </div>
             ))}
           </div>
+
+          {/* Tagline */}
+          <p style={{
+            marginTop: '40px',
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: '14px'
+          }}>
+            Rejoignez 500+ commerces qui utilisent AiNa
+          </p>
         </div>
       </div>
 
@@ -503,6 +518,20 @@ function Login() {
         
         input::placeholder {
           color: #999;
+        }
+        
+        @media (max-width: 768px) {
+          .login-container {
+            flex-direction: column !important;
+          }
+          
+          .login-right {
+            display: none !important;
+          }
+          
+          .login-left {
+            padding: 24px 20px !important;
+          }
         }
       `}</style>
     </div>

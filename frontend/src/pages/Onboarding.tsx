@@ -865,6 +865,39 @@ function Onboarding() {
         input::placeholder {
           color: #999;
         }
+        
+        @media (max-width: 768px) {
+          .onboarding-container {
+            padding: 16px !important;
+          }
+          
+          .onboarding-card {
+            padding: 24px 20px !important;
+            margin: 0 !important;
+          }
+          
+          .onboarding-title {
+            font-size: 24px !important;
+          }
+          
+          .onboarding-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          
+          .onboarding-grid-2 {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          
+          .onboarding-buttons {
+            flex-direction: column !important;
+            gap: 12px !important;
+          }
+          
+          .onboarding-buttons button {
+            width: 100% !important;
+          }
+        }
       `}</style>
     </div>
   );

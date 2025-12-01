@@ -156,10 +156,12 @@ function Dashboard() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: '16px 32px',
+          padding: '16px 24px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -246,7 +248,7 @@ function Dashboard() {
       <main style={{
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '32px'
+        padding: '24px 16px'
       }}>
         {/* Welcome Section - Réduit */}
         <div style={{
@@ -257,11 +259,13 @@ function Dashboard() {
           <div style={{
             background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
             borderRadius: '16px',
-            padding: '20px 28px',
+            padding: '20px',
             marginBottom: '28px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {/* Logo ou initiale */}
@@ -313,7 +317,8 @@ function Dashboard() {
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '8px',
+                flexWrap: 'wrap'
               }}>
                 <span style={{
                   padding: '8px 16px',
@@ -370,12 +375,15 @@ function Dashboard() {
             Actions rapides
           </h2>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1.5fr 1fr',
-            gap: '24px',
-            marginBottom: '40px'
-          }}>
+          <div 
+            className="dashboard-grid"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '24px',
+              marginBottom: '40px'
+            }}
+          >
             {/* Create Post */}
             <div
               onClick={() => navigate('/create')}
@@ -810,7 +818,7 @@ function Dashboard() {
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
               gap: '16px'
             }}>
               {autoEvents.map((event, index) => (
@@ -906,6 +914,53 @@ function Dashboard() {
       {/* CSS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+          .dashboard-header {
+            padding: 12px 16px !important;
+          }
+          
+          .dashboard-main {
+            padding: 16px !important;
+          }
+          
+          .dashboard-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          
+          .dashboard-card {
+            padding: 20px !important;
+          }
+          
+          .welcome-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 16px !important;
+          }
+          
+          .welcome-badges {
+            flex-wrap: wrap !important;
+          }
+          
+          .events-grid {
+            grid-template-columns: 1fr !important;
+          }
+          
+          .header-nav {
+            display: none !important;
+          }
+          
+          .header-user {
+            gap: 8px !important;
+          }
+          
+          .logout-btn {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+          }
+        }
       `}</style>
     </div>
   );
