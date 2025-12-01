@@ -5,6 +5,7 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { generateYearEvents } from '../autoEvents';
 
 const locales = { 'fr': fr };
 const localizer = dateFnsLocalizer({
@@ -22,17 +23,23 @@ interface EventType {
   end: Date;
   event_type: string;
   description?: string;
+  isAuto?: boolean; // true = événement automatique (fête, férié...)
 }
 
 function CalendarPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
-  const [events, setEvents] = useState<EventType[]>([]);
+  const [userEvents, setUserEvents] = useState<EventType[]>([]);
+  const [autoEvents, setAutoEvents] = useState<EventType[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentView, setCurrentView] = useState<string>('month');
+
+  // Tous les événements combinés
+  const allEvents = [...userEvents, ...autoEvents];
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
@@ -52,7 +59,31 @@ function CalendarPage() {
 
   useEffect(() => {
     checkUser();
+    loadAutoEvents();
   }, []);
+
+  const loadAutoEvents = () => {
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+    
+    // Générer les événements pour cette année et l'année prochaine
+    const eventsThisYear = generateYearEvents(currentYear);
+    const eventsNextYear = generateYearEvents(nextYear);
+    const allAutoEvents = [...eventsThisYear, ...eventsNextYear];
+    
+    // Convertir au format EventType
+    const formattedAutoEvents: EventType[] = allAutoEvents.map((event, index) => ({
+      id: `auto-${index}-${event.date.getTime()}`,
+      title: event.title,
+      start: event.date,
+      end: event.date,
+      event_type: event.type,
+      description: event.description,
+      isAuto: true
+    }));
+    
+    setAutoEvents(formattedAutoEvents);
+  };
 
   const checkUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -63,7 +94,6 @@ function CalendarPage() {
     setUser(session.user);
     await loadEvents(session.user.id);
     setLoading(false);
-    setTimeout(() => setIsVisible(true), 100);
   };
 
   const loadEvents = async (userId: string) => {
@@ -79,9 +109,10 @@ function CalendarPage() {
         start: new Date(event.event_date),
         end: new Date(event.event_date),
         event_type: event.event_type,
-        description: event.description
+        description: event.description,
+        isAuto: false
       }));
-      setEvents(formattedEvents);
+      setUserEvents(formattedEvents);
     }
   };
 
@@ -119,9 +150,10 @@ function CalendarPage() {
           start: new Date(data.event_date),
           end: new Date(data.event_date),
           event_type: data.event_type,
-          description: data.description
+          description: data.description,
+          isAuto: false
         };
-        setEvents(prev => [...prev, newEvent]);
+        setUserEvents(prev => [...prev, newEvent]);
         closeModal();
       }
     } catch (err: any) {
@@ -167,17 +199,49 @@ function CalendarPage() {
   };
 
   const eventStyleGetter = (event: EventType) => {
+    // Événements automatiques = style différent (bordure pointillée, plus transparent)
+    if (event.isAuto) {
+      const autoColors: Record<string, string> = {
+        'ferie': '#3B82F6',
+        'commercial': '#F59E0B', 
+        'fete': '#8B5CF6',
+        'saison': '#10B981'
+      };
+      const color = autoColors[event.event_type] || '#6B7280';
+      return {
+        style: {
+          backgroundColor: `${color}30`,
+          borderLeft: `4px solid ${color}`,
+          borderRadius: '4px',
+          color: color,
+          fontWeight: '600',
+          padding: '2px 6px',
+          fontSize: '11px'
+        }
+      };
+    }
+    
+    // Événements utilisateur = style normal
     const color = getEventColor(event.event_type);
     return {
       style: {
         backgroundColor: color,
-        borderRadius: '8px',
+        borderRadius: '6px',
         border: 'none',
         color: 'white',
         fontWeight: '600',
-        padding: '2px 8px'
+        padding: '2px 6px',
+        fontSize: '12px'
       }
     };
+  };
+
+  const handleNavigate = (newDate: Date) => {
+    setCurrentDate(newDate);
+  };
+
+  const handleViewChange = (view: string) => {
+    setCurrentView(view);
   };
 
   if (loading) {
@@ -190,12 +254,7 @@ function CalendarPage() {
         background: 'linear-gradient(135deg, #FFF5F2, #F0F7FF)',
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
       }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px'
-        }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
           <div style={{
             width: '60px',
             height: '60px',
@@ -206,8 +265,7 @@ function CalendarPage() {
             justifyContent: 'center',
             color: 'white',
             fontWeight: '800',
-            fontSize: '24px',
-            animation: 'pulse 1.5s ease-in-out infinite'
+            fontSize: '24px'
           }}>
             A
           </div>
@@ -225,7 +283,7 @@ function CalendarPage() {
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.9)',
+        backgroundColor: 'rgba(255,255,255,0.95)',
         borderBottom: '1px solid #E5E7EB',
         position: 'sticky',
         top: 0,
@@ -361,10 +419,7 @@ function CalendarPage() {
       <main style={{
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '32px',
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
-        transition: 'all 0.6s ease-out'
+        padding: '32px'
       }}>
         {/* Page Title */}
         <div style={{ marginBottom: '24px' }}>
@@ -410,7 +465,7 @@ function CalendarPage() {
           ))}
         </div>
 
-        {/* Calendar */}
+        {/* Calendar Container */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '24px',
@@ -420,12 +475,17 @@ function CalendarPage() {
         }}>
           <Calendar
             localizer={localizer}
-            events={events}
+            events={allEvents}
             startAccessor="start"
             endAccessor="end"
             style={{ height: 600 }}
             eventPropGetter={eventStyleGetter}
             onSelectEvent={handleSelectEvent}
+            date={currentDate}
+            onNavigate={handleNavigate}
+            view={currentView}
+            onView={handleViewChange}
+            views={['month', 'week', 'day', 'agenda']}
             messages={{
               next: "Suivant",
               previous: "Précédent",
@@ -465,8 +525,7 @@ function CalendarPage() {
               padding: '32px',
               width: '100%',
               maxWidth: '500px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-              animation: 'slideUp 0.3s ease-out'
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -492,16 +551,7 @@ function CalendarPage() {
                     borderRadius: '12px',
                     fontSize: '16px',
                     outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#FF6B35';
-                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -522,16 +572,7 @@ function CalendarPage() {
                     borderRadius: '12px',
                     fontSize: '16px',
                     outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#FF6B35';
-                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -557,8 +598,7 @@ function CalendarPage() {
                         fontWeight: '500',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.2s ease'
+                        gap: '6px'
                       }}
                     >
                       {type.icon} {type.value}
@@ -586,16 +626,7 @@ function CalendarPage() {
                     outline: 'none',
                     resize: 'none',
                     boxSizing: 'border-box',
-                    fontFamily: 'inherit',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#FF6B35';
-                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#E5E7EB';
-                    e.currentTarget.style.boxShadow = 'none';
+                    fontFamily: 'inherit'
                   }}
                 />
               </div>
@@ -634,10 +665,7 @@ function CalendarPage() {
                     color: newTitle.trim() && newDate && !saving ? 'white' : '#999',
                     fontWeight: '700',
                     fontSize: '16px',
-                    cursor: newTitle.trim() && newDate && !saving ? 'pointer' : 'not-allowed',
-                    boxShadow: newTitle.trim() && newDate && !saving 
-                      ? '0 4px 15px rgba(255, 107, 53, 0.4)' 
-                      : 'none'
+                    cursor: newTitle.trim() && newDate && !saving ? 'pointer' : 'not-allowed'
                   }}
                 >
                   {saving ? '⏳ Ajout...' : '✓ Ajouter'}
@@ -673,15 +701,40 @@ function CalendarPage() {
               padding: '32px',
               width: '100%',
               maxWidth: '450px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-              animation: 'slideUp 0.3s ease-out'
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Badge auto event */}
+            {selectedEvent.isAuto && (
+              <div style={{
+                display: 'inline-block',
+                padding: '4px 12px',
+                backgroundColor: '#F0F7FF',
+                color: '#3B82F6',
+                borderRadius: '50px',
+                fontSize: '12px',
+                fontWeight: '600',
+                marginBottom: '16px'
+              }}>
+                📅 Événement suggéré
+              </div>
+            )}
+            
             <div style={{
               width: '64px',
               height: '64px',
-              background: `linear-gradient(135deg, ${getEventColor(selectedEvent.event_type)}, ${getEventColor(selectedEvent.event_type)}99)`,
+              background: selectedEvent.isAuto 
+                ? `linear-gradient(135deg, ${
+                    selectedEvent.event_type === 'ferie' ? '#3B82F6' :
+                    selectedEvent.event_type === 'commercial' ? '#F59E0B' :
+                    selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
+                  }, ${
+                    selectedEvent.event_type === 'ferie' ? '#60A5FA' :
+                    selectedEvent.event_type === 'commercial' ? '#FBBF24' :
+                    selectedEvent.event_type === 'fete' ? '#A78BFA' : '#34D399'
+                  })`
+                : `linear-gradient(135deg, ${getEventColor(selectedEvent.event_type)}, ${getEventColor(selectedEvent.event_type)}99)`,
               borderRadius: '16px',
               display: 'flex',
               alignItems: 'center',
@@ -689,7 +742,9 @@ function CalendarPage() {
               fontSize: '28px',
               marginBottom: '20px'
             }}>
-              {eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || '📅'}
+              {selectedEvent.isAuto 
+                ? selectedEvent.title.split(' ')[0] 
+                : eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || '📅'}
             </div>
 
             <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A2E', marginBottom: '8px' }}>
@@ -708,14 +763,28 @@ function CalendarPage() {
             <p style={{ 
               display: 'inline-block',
               padding: '6px 12px',
-              backgroundColor: `${getEventColor(selectedEvent.event_type)}20`,
-              color: getEventColor(selectedEvent.event_type),
+              backgroundColor: selectedEvent.isAuto 
+                ? `${
+                    selectedEvent.event_type === 'ferie' ? '#3B82F6' :
+                    selectedEvent.event_type === 'commercial' ? '#F59E0B' :
+                    selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
+                  }20`
+                : `${getEventColor(selectedEvent.event_type)}20`,
+              color: selectedEvent.isAuto 
+                ? (selectedEvent.event_type === 'ferie' ? '#3B82F6' :
+                   selectedEvent.event_type === 'commercial' ? '#F59E0B' :
+                   selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981')
+                : getEventColor(selectedEvent.event_type),
               borderRadius: '50px',
               fontSize: '14px',
               fontWeight: '600',
               marginBottom: '16px'
             }}>
-              {selectedEvent.event_type}
+              {selectedEvent.isAuto 
+                ? (selectedEvent.event_type === 'ferie' ? '🏛️ Jour férié' :
+                   selectedEvent.event_type === 'commercial' ? '🛍️ Commercial' :
+                   selectedEvent.event_type === 'fete' ? '🎉 Fête' : '🌿 Saison')
+                : selectedEvent.event_type}
             </p>
 
             {selectedEvent.description && (
@@ -743,7 +812,12 @@ function CalendarPage() {
               <button
                 onClick={() => {
                   closeEventModal();
-                  navigate(`/generate?event=${selectedEvent.id}`);
+                  // Pour les événements auto, on va vers create avec le titre pré-rempli
+                  if (selectedEvent.isAuto) {
+                    navigate(`/create?title=${encodeURIComponent(selectedEvent.title)}`);
+                  } else {
+                    navigate(`/generate?event=${selectedEvent.id}`);
+                  }
                 }}
                 style={{
                   flex: 1,
@@ -757,120 +831,121 @@ function CalendarPage() {
                   boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
                 }}
               >
-                🤖 Générer un post
+                ✨ Créer un post
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* CSS */}
+      {/* CSS for Calendar */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.8; }
-        }
-        
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         .rbc-calendar {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        }
-        
-        .rbc-header {
-          padding: 14px !important;
-          font-weight: 600 !important;
-          color: #1A1A2E !important;
-          background: linear-gradient(135deg, #FFF5F2, #F0F7FF) !important;
-          border-bottom: 2px solid #FFE5DC !important;
-        }
-        
-        .rbc-month-view {
-          border: none !important;
-          border-radius: 16px !important;
-          overflow: hidden !important;
-        }
-        
-        .rbc-month-row {
-          border-color: #F0F0F5 !important;
-        }
-        
-        .rbc-day-bg {
-          border-color: #F0F0F5 !important;
-        }
-        
-        .rbc-today {
-          background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 107, 53, 0.05)) !important;
-        }
-        
-        .rbc-date-cell {
-          padding: 8px !important;
-          font-weight: 500 !important;
-        }
-        
-        .rbc-button-link {
-          color: #1A1A2E !important;
-          font-weight: 600 !important;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         
         .rbc-toolbar {
-          margin-bottom: 20px !important;
-          padding: 16px !important;
-          background: linear-gradient(135deg, #FFF5F2, #F0F7FF) !important;
-          border-radius: 16px !important;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding: 16px;
+          background: linear-gradient(135deg, #FFF5F2, #F0F7FF);
+          border-radius: 16px;
+          gap: 12px;
         }
         
         .rbc-toolbar button {
-          border-radius: 10px !important;
-          padding: 10px 18px !important;
-          border: 2px solid #E5E7EB !important;
-          font-weight: 500 !important;
-          background: white !important;
-          transition: all 0.2s ease !important;
+          background: white;
+          border: 2px solid #E5E7EB;
+          border-radius: 10px;
+          padding: 10px 18px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          font-family: inherit;
+          font-size: 14px;
+          color: #1A1A2E;
         }
         
         .rbc-toolbar button:hover {
-          background-color: #FFF5F2 !important;
-          border-color: #FF6B35 !important;
+          background-color: #FFF5F2;
+          border-color: #FF6B35;
+          color: #FF6B35;
         }
         
         .rbc-toolbar button.rbc-active {
-          background: linear-gradient(135deg, #FF6B35, #FF8F5E) !important;
-          border-color: #FF6B35 !important;
-          color: white !important;
+          background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+          border-color: #FF6B35;
+          color: white;
+        }
+        
+        .rbc-toolbar-label {
+          font-weight: 700;
+          font-size: 18px;
+          color: #1A1A2E;
+          text-transform: capitalize;
+        }
+        
+        .rbc-header {
+          padding: 12px;
+          font-weight: 600;
+          color: #1A1A2E;
+          background: linear-gradient(135deg, #FFF5F2, #F0F7FF);
+          border-bottom: 2px solid #FFE5DC;
+        }
+        
+        .rbc-month-view {
+          border: none;
+          border-radius: 12px;
+          overflow: hidden;
+        }
+        
+        .rbc-month-row {
+          border-color: #F0F0F5;
+        }
+        
+        .rbc-day-bg {
+          border-color: #F0F0F5;
+        }
+        
+        .rbc-today {
+          background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 107, 53, 0.05));
+        }
+        
+        .rbc-date-cell {
+          padding: 8px;
+          font-weight: 500;
         }
         
         .rbc-off-range-bg {
-          background-color: #FAFBFC !important;
+          background-color: #FAFBFC;
         }
         
         .rbc-off-range {
-          color: #CCC !important;
+          color: #CCC;
         }
         
         .rbc-event {
-          border: none !important;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+          border: none;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .rbc-event:focus {
-          outline: none !important;
+          outline: none;
         }
         
         .rbc-show-more {
-          color: #FF6B35 !important;
-          font-weight: 600 !important;
+          color: #FF6B35;
+          font-weight: 600;
+        }
+        
+        .rbc-btn-group {
+          display: flex;
+          gap: 4px;
         }
       `}</style>
     </div>

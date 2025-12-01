@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { generatePostText, generateImage, MoodboardData } from '../gemini';
+import { generatePostText, generateImage } from '../gemini';
 
 interface Business {
   id: string;
@@ -95,8 +95,7 @@ function GeneratePost() {
     setSelectedVersion(null);
 
     try {
-      // Préparer les données du Moodboard
-      const moodboard: MoodboardData = {
+      const moodboard = {
         keywords: business.keywords,
         logo_url: business.logo_url,
         photos: business.photos,
@@ -128,8 +127,7 @@ function GeneratePost() {
     setGeneratedImage(null);
 
     try {
-      // Préparer les données du Moodboard
-      const moodboard: MoodboardData = {
+      const moodboard = {
         keywords: business.keywords,
         logo_url: business.logo_url,
         photos: business.photos,

@@ -3,7 +3,7 @@ const GEMINI_API_KEY = 'AIzaSyCgsJKZROIcOF_Di7As4XX4dRIMWjGFFfE';
 const TEXT_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 
-// Interface pour les données du Moodboard
+// Interface pour les données du Moodboard - EXPORTÉE
 export interface MoodboardData {
   keywords?: string[];
   logo_url?: string;
