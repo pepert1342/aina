@@ -257,7 +257,7 @@ function Dashboard() {
           transition: 'all 0.6s ease-out'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #1A1A2E 0%, #2C3E50 100%)',
+            background: '#004E89',
             borderRadius: '16px',
             padding: '20px',
             marginBottom: '28px',
@@ -285,7 +285,7 @@ function Dashboard() {
                 <div style={{
                   width: '50px',
                   height: '50px',
-                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  background: 'rgba(255,255,255,0.2)',
                   borderRadius: '12px',
                   display: 'flex',
                   alignItems: 'center',
@@ -313,39 +313,12 @@ function Dashboard() {
               </div>
             </div>
 
-            {business ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap'
-              }}>
-                <span style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  borderRadius: '50px',
-                  color: 'rgba(255,255,255,0.9)',
-                  fontSize: '14px',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  {business.business_type}
-                </span>
-                <span style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'rgba(255,107,53,0.2)',
-                  borderRadius: '50px',
-                  color: '#FF8F5E',
-                  fontSize: '14px'
-                }}>
-                  {business.tone}
-                </span>
-              </div>
-            ) : (
+            {!business && (
               <button
                 onClick={() => navigate('/onboarding')}
                 style={{
                   padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
                   border: 'none',
                   borderRadius: '12px',
                   color: 'white',
@@ -388,22 +361,22 @@ function Dashboard() {
             <div
               onClick={() => navigate('/create')}
               style={{
-                background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
                 borderRadius: '20px',
                 padding: '28px',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 position: 'relative',
                 overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(255, 107, 53, 0.3)'
+                boxShadow: '0 10px 30px rgba(255, 138, 101, 0.3)'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(255, 107, 53, 0.4)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(255, 138, 101, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 10px 30px rgba(255, 107, 53, 0.3)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(255, 138, 101, 0.3)';
               }}
             >
               <div style={{
@@ -567,22 +540,22 @@ function Dashboard() {
             <div
               onClick={() => navigate('/moodboard')}
               style={{
-                background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                background: 'linear-gradient(135deg, #10B981, #34D399)',
                 borderRadius: '20px',
                 padding: '28px',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 position: 'relative',
                 overflow: 'hidden',
-                boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)'
+                boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(139, 92, 246, 0.4)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(16, 185, 129, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 10px 30px rgba(139, 92, 246, 0.3)';
+                e.currentTarget.style.boxShadow = '0 10px 30px rgba(16, 185, 129, 0.3)';
               }}
             >
               <div style={{
@@ -915,50 +888,78 @@ function Dashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         
-        /* Mobile Responsive */
         @media (max-width: 768px) {
-          .dashboard-header {
+          /* Header mobile */
+          header > div {
             padding: 12px 16px !important;
           }
           
-          .dashboard-main {
+          /* Cacher le nom utilisateur sur mobile */
+          header span[style*="background: #F5F5F7"] {
+            display: none !important;
+          }
+          
+          /* Main padding */
+          main {
             padding: 16px !important;
           }
           
+          /* Welcome card */
+          .welcome-section > div > div:first-child {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          
+          /* Cards grid - 1 colonne */
           .dashboard-grid {
             grid-template-columns: 1fr !important;
             gap: 16px !important;
           }
           
-          .dashboard-card {
+          /* Card padding réduit */
+          .dashboard-grid > div {
             padding: 20px !important;
           }
           
-          .welcome-card {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 16px !important;
+          /* Titres plus petits */
+          h1 {
+            font-size: 24px !important;
           }
           
-          .welcome-badges {
-            flex-wrap: wrap !important;
+          h2 {
+            font-size: 18px !important;
           }
           
+          /* Bouton déconnexion compact */
+          button[style*="Déconnexion"] {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+          }
+          
+          /* Events grid */
           .events-grid {
             grid-template-columns: 1fr !important;
           }
           
-          .header-nav {
-            display: none !important;
+          /* Auto events grid */
+          .auto-events-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          /* Très petit écran */
+          main {
+            padding: 12px !important;
           }
           
-          .header-user {
-            gap: 8px !important;
+          h1 {
+            font-size: 20px !important;
           }
           
-          .logout-btn {
-            padding: 8px 12px !important;
-            font-size: 12px !important;
+          .dashboard-grid > div {
+            padding: 16px !important;
           }
         }
       `}</style>

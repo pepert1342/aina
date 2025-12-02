@@ -53,7 +53,8 @@ function Login() {
       style={{
         minHeight: '100vh',
         display: 'flex',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        background: 'linear-gradient(180deg, #FFF5F0 0%, #FFFFFF 30%, #FFFFFF 100%)'
       }}
     >
       {/* Left Side - Form */}
@@ -66,9 +67,42 @@ function Login() {
           justifyContent: 'center',
           alignItems: 'center',
           padding: '48px 24px',
-          backgroundColor: 'white'
+          backgroundColor: 'transparent',
+          position: 'relative',
+          overflow: 'hidden'
         }}
       >
+        {/* Cercles décoratifs oranges et bleus */}
+        <div style={{
+          position: 'absolute',
+          top: '-50px',
+          right: '-50px',
+          width: '150px',
+          height: '150px',
+          background: 'radial-gradient(circle, rgba(255,138,101,0.3) 0%, transparent 70%)',
+          borderRadius: '50%',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          bottom: '10%',
+          left: '-30px',
+          width: '100px',
+          height: '100px',
+          background: 'radial-gradient(circle, rgba(0,78,137,0.15) 0%, transparent 70%)',
+          borderRadius: '50%',
+          pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute',
+          top: '30%',
+          left: '-20px',
+          width: '80px',
+          height: '80px',
+          background: 'radial-gradient(circle, rgba(0,78,137,0.1) 0%, transparent 70%)',
+          borderRadius: '50%',
+          pointerEvents: 'none'
+        }} />
         <div style={{ width: '100%', maxWidth: '420px' }}>
           {/* Logo */}
           <div 
@@ -77,14 +111,15 @@ function Login() {
               alignItems: 'center', 
               gap: '12px', 
               marginBottom: '48px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              justifyContent: 'center'
             }}
             onClick={() => navigate('/')}
           >
             <div style={{
               width: '48px',
               height: '48px',
-              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
               borderRadius: '14px',
               display: 'flex',
               alignItems: 'center',
@@ -99,7 +134,7 @@ function Login() {
             <span style={{ 
               fontSize: '28px', 
               fontWeight: '800',
-              background: 'linear-gradient(135deg, #FF6B35, #004E89)',
+              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent'
             }}>
@@ -111,15 +146,18 @@ function Login() {
           <h1 style={{
             fontSize: '32px',
             fontWeight: '800',
-            color: '#1A1A2E',
-            marginBottom: '8px'
+            color: '#004E89',
+            marginBottom: '8px',
+            textAlign: 'center',
+            textTransform: 'uppercase'
           }}>
-            {isLogin ? 'Bon retour ! 👋' : 'Créer un compte ✨'}
+            {isLogin ? 'Bon retour' : 'Bienvenue'}
           </h1>
           <p style={{
             color: '#666',
             marginBottom: '32px',
-            fontSize: '16px'
+            fontSize: '16px',
+            textAlign: 'center'
           }}>
             {isLogin 
               ? 'Connectez-vous pour accéder à votre espace' 
@@ -129,10 +167,11 @@ function Login() {
           {/* Toggle */}
           <div style={{
             display: 'flex',
-            backgroundColor: '#F5F5F7',
+            backgroundColor: '#F0F7FF',
             borderRadius: '12px',
             padding: '4px',
-            marginBottom: '32px'
+            marginBottom: '32px',
+            border: '2px solid #004E89'
           }}>
             <button
               onClick={() => { setIsLogin(true); setError(''); setSuccess(''); }}
@@ -141,11 +180,11 @@ function Login() {
                 padding: '12px',
                 borderRadius: '10px',
                 border: 'none',
-                backgroundColor: isLogin ? 'white' : 'transparent',
-                color: isLogin ? '#1A1A2E' : '#666',
+                backgroundColor: isLogin ? '#004E89' : 'transparent',
+                color: isLogin ? 'white' : '#004E89',
                 fontWeight: '600',
                 cursor: 'pointer',
-                boxShadow: isLogin ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                boxShadow: isLogin ? '0 4px 12px rgba(0,78,137,0.3)' : 'none',
                 transition: 'all 0.3s ease'
               }}
             >
@@ -158,11 +197,11 @@ function Login() {
                 padding: '12px',
                 borderRadius: '10px',
                 border: 'none',
-                backgroundColor: !isLogin ? 'white' : 'transparent',
-                color: !isLogin ? '#1A1A2E' : '#666',
+                backgroundColor: !isLogin ? '#004E89' : 'transparent',
+                color: !isLogin ? 'white' : '#004E89',
                 fontWeight: '600',
                 cursor: 'pointer',
-                boxShadow: !isLogin ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                boxShadow: !isLogin ? '0 4px 12px rgba(0,78,137,0.3)' : 'none',
                 transition: 'all 0.3s ease'
               }}
             >
@@ -236,7 +275,7 @@ function Login() {
                   boxSizing: 'border-box'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#FF6B35';
+                  e.currentTarget.style.borderColor = '#FF8A65';
                   e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
                 }}
                 onBlur={(e) => {
@@ -273,7 +312,7 @@ function Login() {
                   boxSizing: 'border-box'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#FF6B35';
+                  e.currentTarget.style.borderColor = '#FF8A65';
                   e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
                 }}
                 onBlur={(e) => {
@@ -311,7 +350,7 @@ function Login() {
                     boxSizing: 'border-box'
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#FF6B35';
+                    e.currentTarget.style.borderColor = '#FF8A65';
                     e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 107, 53, 0.1)';
                   }}
                   onBlur={(e) => {
@@ -328,7 +367,7 @@ function Login() {
                 marginBottom: '24px'
               }}>
                 <a href="#" style={{
-                  color: '#FF6B35',
+                  color: '#FF8A65',
                   textDecoration: 'none',
                   fontSize: '14px',
                   fontWeight: '500'
@@ -346,7 +385,7 @@ function Login() {
                 padding: '18px',
                 background: loading 
                   ? '#ccc' 
-                  : 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                  : 'linear-gradient(135deg, #FF8A65, #FF8F5E)',
                 border: 'none',
                 borderRadius: '12px',
                 color: 'white',
@@ -387,7 +426,7 @@ function Login() {
             <span
               onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
               style={{
-                color: '#FF6B35',
+                color: '#FF8A65',
                 fontWeight: '600',
                 cursor: 'pointer'
               }}
@@ -520,17 +559,25 @@ function Login() {
           color: #999;
         }
         
-        @media (max-width: 768px) {
-          .login-container {
-            flex-direction: column !important;
-          }
-          
+        @media (max-width: 900px) {
           .login-right {
             display: none !important;
           }
-          
+        }
+        
+        @media (max-width: 480px) {
           .login-left {
-            padding: 24px 20px !important;
+            padding: 24px 16px !important;
+          }
+          
+          .login-left h1 {
+            font-size: 26px !important;
+          }
+          
+          .login-left input,
+          .login-left button {
+            padding: 14px !important;
+            font-size: 15px !important;
           }
         }
       `}</style>
