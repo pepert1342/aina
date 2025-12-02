@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generatePostText, generateImage } from '../gemini';
+import logoAina from '/logo-aina.png';
 
 interface Business {
   id: string;
@@ -201,116 +202,119 @@ function CreatePost() {
         <div style={{
           maxWidth: '1400px',
           margin: '0 auto',
-          padding: '16px 32px',
+          padding: '12px 16px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div 
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <div style={{
-                width: '44px',
-                height: '44px',
-                background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: '800',
-                fontSize: '20px'
-              }}>
-                A
-              </div>
-              <span style={{ 
-                fontSize: '24px', 
-                fontWeight: '800',
-                background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                AiNa
-              </span>
-            </div>
-
-            <nav style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => navigate('/dashboard')} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: 'none', borderRadius: '10px', color: '#666', fontWeight: '500', cursor: 'pointer', fontSize: '14px' }}>
-                Dashboard
-              </button>
-              <button onClick={() => navigate('/calendar')} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: 'none', borderRadius: '10px', color: '#666', fontWeight: '500', cursor: 'pointer', fontSize: '14px' }}>
-                Calendrier
-              </button>
-              <button style={{ padding: '10px 20px', backgroundColor: '#004E8915', border: 'none', borderRadius: '10px', color: '#004E89', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}>
-                Créer un post
-              </button>
-            </nav>
+          {/* Logo */}
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+            onClick={() => navigate('/dashboard')}
+          >
+            <img 
+              src={logoAina} 
+              alt="AiNa" 
+              style={{
+                width: '52px',
+                height: '52px',
+                objectFit: 'contain'
+              }}
+            />
+            <span style={{ 
+              fontSize: '24px', 
+              fontWeight: '800',
+              fontFamily: "'Poppins', sans-serif",
+              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              marginLeft: '-4px'
+            }}>
+              AiNa
+            </span>
           </div>
 
-          <button onClick={handleLogout} style={{ padding: '10px 20px', backgroundColor: 'transparent', border: '2px solid #E5E7EB', borderRadius: '10px', color: '#666', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}>
-            Déconnexion
-          </button>
+          {/* Boutons à droite */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={() => navigate('/create')}
+              className="btn-create"
+              style={{
+                padding: '10px 16px',
+                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '13px',
+                boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              ✨ Créer
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 14px',
+                backgroundColor: 'transparent',
+                border: '2px solid #E5E7EB',
+                borderRadius: '10px',
+                color: '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '13px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Déconnexion
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main style={{
-        maxWidth: '1400px',
+      <main className="main-content" style={{
         margin: '0 auto',
-        padding: '32px',
+        padding: '16px',
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
         transition: 'all 0.6s ease-out'
       }}>
         
         {/* Header Banner - Dégradé INVERSÉ (Bleu → Orange) */}
-        <div style={{
-          background: 'linear-gradient(135deg, #004E89, #FF6B35)',
-          borderRadius: '20px',
-          padding: '24px 32px',
-          marginBottom: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+        <div className="banner" style={{
+          background: 'linear-gradient(135deg, #004E89, #FF8A65)',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '20px',
           boxShadow: '0 10px 40px rgba(0, 78, 137, 0.3)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <div style={{
-              width: '60px',
-              height: '60px',
+              width: '44px',
+              height: '44px',
               backgroundColor: 'rgba(255,255,255,0.2)',
-              borderRadius: '16px',
+              borderRadius: '12px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '28px'
+              fontSize: '22px',
+              flexShrink: 0
             }}>
               ✨
             </div>
             <div>
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '4px' }}>
-                Création libre
-              </p>
-              <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'white', margin: 0 }}>
+              <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
                 Créer un nouveau post
               </h1>
-              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginTop: '4px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '2px' }}>
                 Décrivez ce que vous voulez, l'IA s'occupe du reste !
               </p>
             </div>
-          </div>
-          
-          <div style={{
-            padding: '10px 20px',
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            borderRadius: '50px',
-            color: 'white',
-            fontWeight: '600',
-            fontSize: '14px'
-          }}>
-            {business?.business_name}
           </div>
         </div>
 
@@ -364,231 +368,201 @@ function CreatePost() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
           border: '1px solid #DCE8F5'
         }}>
-          {/* Première ligne : Plateforme et Format */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '24px' }}>
+          {/* Options : Plateforme et Format */}
+          <div className="options-section" style={{ marginBottom: '20px' }}>
             
-            {/* Platform Selection - CENTRÉ */}
-            <div style={{ textAlign: 'center' }}>
-              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '16px' }}>
+            {/* Platform Selection */}
+            <div style={{ marginBottom: '20px' }}>
+              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
                 📱 Plateforme
               </span>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              
+              {/* Grid 2x2 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {/* Instagram */}
                 <button
                   onClick={() => setSelectedPlatform('Instagram')}
                   style={{
-                    padding: '16px 24px',
-                    borderRadius: '14px',
-                    border: `3px solid ${selectedPlatform === 'Instagram' ? '#E4405F' : '#E5E7EB'}`,
-                    backgroundColor: selectedPlatform === 'Instagram' ? '#E4405F10' : 'white',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: selectedPlatform === 'Instagram' ? 'none' : '2px solid #E5E7EB',
+                    background: selectedPlatform === 'Instagram' 
+                      ? 'linear-gradient(135deg, #833AB4, #E4405F, #FFDC80)' 
+                      : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedPlatform === 'Instagram' ? '0 4px 15px rgba(228, 64, 95, 0.4)' : 'none'
                   }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <linearGradient id="instagram-gradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#FFDC80" />
-                      <stop offset="25%" stopColor="#F77737" />
-                      <stop offset="50%" stopColor="#E1306C" />
-                      <stop offset="75%" stopColor="#C13584" />
-                      <stop offset="100%" stopColor="#833AB4" />
-                    </linearGradient>
-                    <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#instagram-gradient)" strokeWidth="2" fill="none"/>
-                    <circle cx="12" cy="12" r="4" stroke="url(#instagram-gradient)" strokeWidth="2" fill="none"/>
-                    <circle cx="17.5" cy="6.5" r="1.5" fill="url(#instagram-gradient)"/>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={selectedPlatform === 'Instagram' ? 'white' : '#E4405F'}>
+                    <rect x="2" y="2" width="20" height="20" rx="5" stroke={selectedPlatform === 'Instagram' ? 'white' : '#E4405F'} strokeWidth="2" fill="none"/>
+                    <circle cx="12" cy="12" r="4" stroke={selectedPlatform === 'Instagram' ? 'white' : '#E4405F'} strokeWidth="2" fill="none"/>
+                    <circle cx="17.5" cy="6.5" r="1.5" fill={selectedPlatform === 'Instagram' ? 'white' : '#E4405F'}/>
                   </svg>
-                  <span style={{ fontWeight: '600', fontSize: '16px', color: '#1A1A2E' }}>Instagram</span>
+                  <span style={{ fontWeight: '700', fontSize: '14px', color: selectedPlatform === 'Instagram' ? 'white' : '#1A1A2E' }}>Instagram</span>
                 </button>
 
                 {/* Facebook */}
                 <button
                   onClick={() => setSelectedPlatform('Facebook')}
                   style={{
-                    padding: '16px 24px',
-                    borderRadius: '14px',
-                    border: `3px solid ${selectedPlatform === 'Facebook' ? '#1877F2' : '#E5E7EB'}`,
-                    backgroundColor: selectedPlatform === 'Facebook' ? '#1877F210' : 'white',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: selectedPlatform === 'Facebook' ? 'none' : '2px solid #E5E7EB',
+                    background: selectedPlatform === 'Facebook' 
+                      ? '#1877F2' 
+                      : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedPlatform === 'Facebook' ? '0 4px 15px rgba(24, 119, 242, 0.4)' : 'none'
                   }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="#1877F2">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={selectedPlatform === 'Facebook' ? 'white' : '#1877F2'}>
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
-                  <span style={{ fontWeight: '600', fontSize: '16px', color: '#1A1A2E' }}>Facebook</span>
+                  <span style={{ fontWeight: '700', fontSize: '14px', color: selectedPlatform === 'Facebook' ? 'white' : '#1A1A2E' }}>Facebook</span>
                 </button>
 
                 {/* TikTok */}
                 <button
                   onClick={() => setSelectedPlatform('TikTok')}
                   style={{
-                    padding: '16px 24px',
-                    borderRadius: '14px',
-                    border: `3px solid ${selectedPlatform === 'TikTok' ? '#000000' : '#E5E7EB'}`,
-                    backgroundColor: selectedPlatform === 'TikTok' ? '#00000010' : 'white',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: selectedPlatform === 'TikTok' ? 'none' : '2px solid #E5E7EB',
+                    background: selectedPlatform === 'TikTok' 
+                      ? 'linear-gradient(135deg, #00F2EA, #FF0050)' 
+                      : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedPlatform === 'TikTok' ? '0 4px 15px rgba(0, 0, 0, 0.3)' : 'none'
                   }}
                 >
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z" fill="#000"/>
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z" fill="#25F4EE" style={{transform: 'translate(-1px, -1px)'}}/>
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z" fill="#FE2C55" style={{transform: 'translate(1px, 1px)'}}/>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={selectedPlatform === 'TikTok' ? 'white' : '#000'}>
+                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
                   </svg>
-                  <span style={{ fontWeight: '600', fontSize: '16px', color: '#1A1A2E' }}>TikTok</span>
+                  <span style={{ fontWeight: '700', fontSize: '14px', color: selectedPlatform === 'TikTok' ? 'white' : '#1A1A2E' }}>TikTok</span>
+                </button>
+
+                {/* LinkedIn */}
+                <button
+                  onClick={() => setSelectedPlatform('LinkedIn')}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: selectedPlatform === 'LinkedIn' ? 'none' : '2px solid #E5E7EB',
+                    background: selectedPlatform === 'LinkedIn' 
+                      ? '#0A66C2' 
+                      : 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: selectedPlatform === 'LinkedIn' ? '0 4px 15px rgba(10, 102, 194, 0.4)' : 'none'
+                  }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={selectedPlatform === 'LinkedIn' ? 'white' : '#0A66C2'}>
+                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                  </svg>
+                  <span style={{ fontWeight: '700', fontSize: '14px', color: selectedPlatform === 'LinkedIn' ? 'white' : '#1A1A2E' }}>LinkedIn</span>
                 </button>
               </div>
             </div>
 
-            {/* Separator vertical */}
-            <div style={{ 
-              borderLeft: '2px solid #E5E7EB',
-              paddingLeft: '32px',
-              textAlign: 'center'
-            }}>
-              {/* Format Selection - CENTRÉ et PLEINE LARGEUR */}
-              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '16px' }}>
-                📐 Format du post
+            {/* Format Selection */}
+            <div>
+              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+                📐 Format
               </span>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => setSelectedFormat('carre')}
                   style={{
-                    padding: '20px',
-                    borderRadius: '14px',
-                    border: `3px solid ${selectedFormat === 'carre' ? '#004E89' : '#E5E7EB'}`,
-                    backgroundColor: selectedFormat === 'carre' ? '#004E8915' : 'white',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: `2px solid ${selectedFormat === 'carre' ? '#004E89' : '#E5E7EB'}`,
+                    backgroundColor: selectedFormat === 'carre' ? '#004E8920' : 'white',
                     cursor: 'pointer',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    flex: '1'
                   }}
                 >
-                  <div style={{ width: '40px', height: '40px', border: '3px solid #1A1A2E', borderRadius: '8px' }} />
-                  <div>
-                    <span style={{ fontWeight: '700', fontSize: '16px', color: '#1A1A2E', display: 'block' }}>Carré</span>
-                    <span style={{ fontSize: '13px', color: '#666' }}>1080 × 1080</span>
+                  <div style={{ width: '24px', height: '24px', border: `2px solid ${selectedFormat === 'carre' ? '#004E89' : '#888'}`, borderRadius: '4px' }}></div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>Carré</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>1080×1080</div>
                   </div>
                 </button>
+
                 <button
                   onClick={() => setSelectedFormat('story')}
                   style={{
-                    padding: '20px',
-                    borderRadius: '14px',
-                    border: `3px solid ${selectedFormat === 'story' ? '#004E89' : '#E5E7EB'}`,
-                    backgroundColor: selectedFormat === 'story' ? '#004E8915' : 'white',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    border: `2px solid ${selectedFormat === 'story' ? '#004E89' : '#E5E7EB'}`,
+                    backgroundColor: selectedFormat === 'story' ? '#004E8920' : 'white',
                     cursor: 'pointer',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    flex: '1'
                   }}
                 >
-                  <div style={{ width: '24px', height: '40px', border: '3px solid #1A1A2E', borderRadius: '8px' }} />
-                  <div>
-                    <span style={{ fontWeight: '700', fontSize: '16px', color: '#1A1A2E', display: 'block' }}>Story</span>
-                    <span style={{ fontSize: '13px', color: '#666' }}>1080 × 1920</span>
+                  <div style={{ width: '16px', height: '24px', border: `2px solid ${selectedFormat === 'story' ? '#004E89' : '#888'}`, borderRadius: '3px' }}></div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>Story</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>1080×1920</div>
                   </div>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Deuxième ligne : Boutons d'action GROS et alignés - Dégradé INVERSÉ */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '16px',
-            paddingTop: '24px',
-            borderTop: '2px solid #F5F5F7'
-          }}>
-            <button
-              onClick={handleGenerateText}
-              disabled={!postDescription.trim() || generating}
-              style={{
-                flex: 1,
-                padding: '20px 32px',
-                background: postDescription.trim() && !generating ? 'linear-gradient(135deg, #004E89, #0077CC)' : '#E5E7EB',
-                border: 'none',
-                borderRadius: '16px',
-                color: postDescription.trim() && !generating ? 'white' : '#999',
-                fontWeight: '700',
-                cursor: postDescription.trim() && !generating ? 'pointer' : 'not-allowed',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                boxShadow: postDescription.trim() && !generating ? '0 6px 20px rgba(0, 78, 137, 0.3)' : 'none',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {generating ? '⏳ Génération...' : '✨ Générer le Texte'}
-            </button>
-            <button
-              onClick={handleGenerateImage}
-              disabled={!postDescription.trim() || generatingImage}
-              style={{
-                flex: 1,
-                padding: '20px 32px',
-                background: postDescription.trim() && !generatingImage ? 'linear-gradient(135deg, #004E89, #0077CC)' : '#E5E7EB',
-                border: 'none',
-                borderRadius: '16px',
-                color: postDescription.trim() && !generatingImage ? 'white' : '#999',
-                fontWeight: '700',
-                cursor: postDescription.trim() && !generatingImage ? 'pointer' : 'not-allowed',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                boxShadow: postDescription.trim() && !generatingImage ? '0 6px 20px rgba(0, 78, 137, 0.3)' : 'none',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {generatingImage ? '⏳ Génération...' : '🎨 Générer l\'Image'}
-            </button>
-            <button
-              onClick={handleGenerateAll}
-              disabled={!postDescription.trim() || generating || generatingImage}
-              style={{
-                flex: 1,
-                padding: '20px 32px',
-                background: postDescription.trim() && !generating && !generatingImage
-                  ? 'linear-gradient(135deg, #004E89, #FF6B35)'
-                  : '#E5E7EB',
-                border: 'none',
-                borderRadius: '16px',
-                color: postDescription.trim() && !generating && !generatingImage ? 'white' : '#999',
-                fontWeight: '700',
-                cursor: postDescription.trim() && !generating && !generatingImage ? 'pointer' : 'not-allowed',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '10px',
-                boxShadow: postDescription.trim() && !generating && !generatingImage 
-                  ? '0 8px 30px rgba(0, 78, 137, 0.4)' 
-                  : 'none',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              {generating || generatingImage ? '⏳ Génération...' : '🚀 Tout Générer'}
-            </button>
-          </div>
+          {/* Bouton Générer */}
+          <button
+            onClick={handleGenerateAll}
+            disabled={generating || generatingImage || !postDescription.trim()}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: generating || generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              border: 'none',
+              borderRadius: '12px',
+              color: generating || generatingImage ? '#999' : 'white',
+              fontWeight: '700',
+              cursor: generating || generatingImage ? 'not-allowed' : 'pointer',
+              fontSize: '15px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxShadow: generating || generatingImage ? 'none' : '0 4px 15px rgba(255, 138, 101, 0.3)'
+            }}
+          >
+            {generating || generatingImage ? (
+              <>⏳ Génération en cours...</>
+            ) : (
+              <>🚀 Tout Générer</>
+            )}
+          </button>
         </div>
 
         {/* Error Messages */}
@@ -605,28 +579,27 @@ function CreatePost() {
           </div>
         )}
 
-        {/* Results Section - Two Columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        {/* Results Section - En colonne sur mobile */}
+        <div className="results-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* Left Column - Generated Texts */}
+          {/* Textes Générés */}
           <div style={{
             backgroundColor: 'white',
-            borderRadius: '20px',
-            padding: '24px',
+            borderRadius: '16px',
+            padding: '16px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            border: '1px solid #DCE8F5',
-            minHeight: '500px'
+            border: '1px solid #DCE8F5'
           }}>
-            <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
               <span style={{
-                width: '32px',
-                height: '32px',
+                width: '28px',
+                height: '28px',
                 background: 'linear-gradient(135deg, #004E89, #0077CC)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '16px'
+                fontSize: '14px'
               }}>✨</span>
               Textes Générés
             </h3>
@@ -634,62 +607,62 @@ function CreatePost() {
             {generatedTexts.length === 0 ? (
               <div style={{ 
                 textAlign: 'center', 
-                padding: '80px 20px', 
+                padding: '40px 16px', 
                 color: '#999',
                 background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
-                borderRadius: '16px',
+                borderRadius: '12px',
                 border: '2px dashed #DCE8F5'
               }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>📝</div>
-                <p style={{ fontSize: '16px', fontWeight: '500' }}>Les textes apparaîtront ici</p>
-                <p style={{ fontSize: '14px', marginTop: '8px' }}>Décrivez votre post et cliquez sur Générer</p>
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📝</div>
+                <p style={{ fontSize: '14px', fontWeight: '500' }}>Les textes apparaîtront ici</p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {generatedTexts.map((text, index) => (
                   <div
                     key={index}
                     onClick={() => setSelectedVersion(index)}
                     style={{
-                      padding: '20px',
-                      borderRadius: '16px',
+                      padding: '14px',
+                      borderRadius: '12px',
                       border: `2px solid ${selectedVersion === index ? '#004E89' : '#E5E7EB'}`,
                       backgroundColor: selectedVersion === index ? '#004E8908' : 'white',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{
-                        padding: '4px 12px',
+                        padding: '3px 10px',
                         backgroundColor: index === 0 ? '#10B98120' : index === 1 ? '#004E8920' : '#8B5CF620',
                         color: index === 0 ? '#10B981' : index === 1 ? '#004E89' : '#8B5CF6',
                         borderRadius: '50px',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '600'
                       }}>
                         {index === 0 ? '📝 Courte' : index === 1 ? '📄 Moyenne' : '📚 Longue'}
                       </span>
                       {selectedVersion === index && (
-                        <span style={{ backgroundColor: '#004E89', color: 'white', padding: '4px 12px', borderRadius: '50px', fontSize: '12px', fontWeight: '600' }}>
+                        <span style={{ backgroundColor: '#004E89', color: 'white', padding: '3px 10px', borderRadius: '50px', fontSize: '11px', fontWeight: '600' }}>
                           ✓ Sélectionnée
                         </span>
                       )}
                     </div>
-                    <p style={{ color: '#444', fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{text}</p>
+                    <p style={{ color: '#444', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{text}</p>
                   </div>
                 ))}
                 <button
                   onClick={handleCopyText}
                   disabled={selectedVersion === null}
                   style={{
-                    padding: '16px',
+                    padding: '12px',
                     background: selectedVersion !== null ? 'linear-gradient(135deg, #10B981, #34D399)' : '#E5E7EB',
                     border: 'none',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     color: selectedVersion !== null ? 'white' : '#999',
                     fontWeight: '600',
-                    cursor: selectedVersion !== null ? 'pointer' : 'not-allowed'
+                    cursor: selectedVersion !== null ? 'pointer' : 'not-allowed',
+                    fontSize: '14px'
                   }}
                 >
                   📋 Copier le texte sélectionné
@@ -698,25 +671,24 @@ function CreatePost() {
             )}
           </div>
 
-          {/* Right Column - Generated Image */}
+          {/* Image Générée */}
           <div style={{
             backgroundColor: 'white',
-            borderRadius: '20px',
-            padding: '24px',
+            borderRadius: '16px',
+            padding: '16px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            border: '1px solid #DCE8F5',
-            minHeight: '500px'
+            border: '1px solid #DCE8F5'
           }}>
-            <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
               <span style={{
-                width: '32px',
-                height: '32px',
-                background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                width: '28px',
+                height: '28px',
+                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '16px'
+                fontSize: '14px'
               }}>🎨</span>
               Image Générée
             </h3>
@@ -725,10 +697,10 @@ function CreatePost() {
               <div style={{
                 backgroundColor: '#FEE2E2',
                 color: '#DC2626',
-                padding: '12px',
-                borderRadius: '12px',
-                marginBottom: '16px',
-                fontSize: '14px'
+                padding: '10px',
+                borderRadius: '10px',
+                marginBottom: '12px',
+                fontSize: '13px'
               }}>
                 ⚠️ {imageError}
               </div>
@@ -736,10 +708,10 @@ function CreatePost() {
 
             {!generatedImage ? (
               <div style={{
-                aspectRatio: selectedFormat === 'carre' ? '1/1' : '9/16',
-                maxHeight: '400px',
+                aspectRatio: '1/1',
+                maxHeight: '250px',
                 background: 'linear-gradient(135deg, #FFF5F2, #F0F7FF)',
-                borderRadius: '16px',
+                borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -747,28 +719,18 @@ function CreatePost() {
                 color: '#999',
                 border: '2px dashed #DCE8F5'
               }}>
-                <div style={{ fontSize: '64px', marginBottom: '16px' }}>🖼️</div>
-                <p style={{ fontSize: '16px', fontWeight: '500' }}>L'image apparaîtra ici</p>
-                <p style={{ 
-                  fontSize: '13px', 
-                  marginTop: '8px', 
-                  padding: '6px 14px', 
-                  backgroundColor: 'white', 
-                  borderRadius: '50px',
-                  border: '1px solid #DCE8F5'
-                }}>
-                  Format : {selectedFormat === 'carre' ? 'Carré (1:1)' : 'Story (9:16)'}
-                </p>
+                <div style={{ fontSize: '40px', marginBottom: '12px' }}>🖼️</div>
+                <p style={{ fontSize: '14px', fontWeight: '500' }}>L'image apparaîtra ici</p>
               </div>
             ) : (
               <div>
                 <div style={{
-                  aspectRatio: selectedFormat === 'carre' ? '1/1' : '9/16',
-                  maxHeight: '400px',
-                  borderRadius: '16px',
+                  aspectRatio: selectedFormat === 'carre' ? '1/1' : selectedFormat === 'story' ? '9/16' : '16/9',
+                  maxHeight: '300px',
+                  borderRadius: '12px',
                   overflow: 'hidden',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
-                  marginBottom: '16px'
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
+                  marginBottom: '12px'
                 }}>
                   <img src={generatedImage} alt="Generated" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
@@ -776,17 +738,18 @@ function CreatePost() {
                   onClick={handleDownloadImage}
                   style={{
                     width: '100%',
-                    padding: '16px',
+                    padding: '12px',
                     background: 'linear-gradient(135deg, #10B981, #34D399)',
                     border: 'none',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     color: 'white',
                     fontWeight: '600',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px'
+                    gap: '8px',
+                    fontSize: '14px'
                   }}
                 >
                   💾 Télécharger l'image
@@ -810,52 +773,91 @@ function CreatePost() {
           color: #999;
         }
         
+        /* MOBILE RESPONSIVE */
         @media (max-width: 768px) {
-          .create-header {
+          /* Header - full width */
+          header > div {
             padding: 12px 16px !important;
+            max-width: 100% !important;
           }
           
-          .create-nav {
-            display: none !important;
+          /* Main - full width */
+          .main-content {
+            padding: 12px !important;
+            max-width: 100% !important;
           }
           
-          .create-main {
+          /* Cacher texte logo sur très petit écran */
+          .logo-text {
+            display: none;
+          }
+          
+          /* Banner */
+          .banner {
             padding: 16px !important;
+            border-radius: 12px !important;
           }
           
-          .create-grid {
+          .banner h1 {
+            font-size: 16px !important;
+          }
+          
+          .banner p {
+            font-size: 12px !important;
+          }
+          
+          /* Section title */
+          h2 {
+            font-size: 16px !important;
+          }
+          
+          /* Textarea */
+          textarea {
+            font-size: 14px !important;
+          }
+          
+          /* Grid plateforme/format -> 1 colonne */
+          .options-grid {
             grid-template-columns: 1fr !important;
             gap: 16px !important;
           }
           
-          .create-banner {
-            padding: 20px !important;
-          }
-          
-          .create-platforms {
+          /* Boutons plateforme en colonne */
+          .platforms-container {
             flex-direction: column !important;
             gap: 12px !important;
           }
           
-          .create-platform-btn {
+          .platforms-container > button {
             width: 100% !important;
+            justify-content: center !important;
           }
           
-          .create-formats {
+          /* Boutons format */
+          .formats-grid {
             grid-template-columns: 1fr !important;
           }
           
-          .create-actions {
+          /* Boutons action */
+          .actions-container {
             flex-direction: column !important;
             gap: 12px !important;
           }
           
-          .create-action-btn {
+          .actions-container > button {
             width: 100% !important;
           }
           
-          .create-results {
+          /* Résultats en 1 colonne */
+          .results-grid {
             grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          main > div:first-child h1 {
+            font-size: 18px !important;
           }
         }
       `}</style>

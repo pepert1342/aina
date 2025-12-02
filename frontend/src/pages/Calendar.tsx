@@ -6,6 +6,7 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { generateYearEvents } from '../autoEvents';
+import logoAina from '/logo-aina.png';
 
 const locales = { 'fr': fr };
 const localizer = dateFnsLocalizer({
@@ -288,125 +289,69 @@ function CalendarPage() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        backdropFilter: 'blur(10px)'
+        backdropFilter: 'blur(10px)',
+        width: '100%'
       }}>
         <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '16px 32px',
+          padding: '10px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-            <div 
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <div style={{
-                width: '44px',
-                height: '44px',
-                background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontWeight: '800',
-                fontSize: '20px'
-              }}>
-                A
-              </div>
-              <span style={{ 
-                fontSize: '24px', 
-                fontWeight: '800',
-                background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                AiNa
-              </span>
-            </div>
-
-            <nav style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => navigate('/dashboard')}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#666',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                Dashboard
-              </button>
-              <button
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#FF6B3515',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#FF6B35',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                Calendrier
-              </button>
-              <button
-                onClick={() => navigate('/create')}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: '#666',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                Créer un post
-              </button>
-            </nav>
+          {/* Logo */}
+          <div 
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+            onClick={() => navigate('/dashboard')}
+          >
+            <img 
+              src={logoAina} 
+              alt="AiNa" 
+              style={{ width: '44px', height: '44px', objectFit: 'contain' }}
+            />
+            <span style={{ 
+              fontSize: '22px', 
+              fontWeight: '800',
+              fontFamily: "'Poppins', sans-serif",
+              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              AiNa
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Boutons à droite */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={openModal}
               style={{
-                padding: '12px 24px',
-                background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: '8px',
                 color: 'white',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
+                fontSize: '12px',
+                boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)',
+                whiteSpace: 'nowrap'
               }}
             >
-              + Nouvel événement
+              + Événement
             </button>
             <button
               onClick={handleLogout}
               style={{
-                padding: '10px 20px',
+                padding: '8px 12px',
                 backgroundColor: 'transparent',
-                border: '2px solid #E5E7EB',
-                borderRadius: '10px',
+                border: '1px solid #E5E7EB',
+                borderRadius: '8px',
                 color: '#666',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '14px'
+                fontSize: '12px',
+                whiteSpace: 'nowrap'
               }}
             >
               Déconnexion
@@ -417,9 +362,10 @@ function CalendarPage() {
 
       {/* Main Content */}
       <main style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '32px'
+        padding: '16px',
+        width: '100%',
+        boxSizing: 'border-box',
+        overflowX: 'hidden'
       }}>
         {/* Page Title */}
         <div style={{ marginBottom: '24px' }}>
@@ -685,154 +631,211 @@ function CalendarPage() {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: 'rgba(0,0,0,0.4)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            backdropFilter: 'blur(4px)'
+            backdropFilter: 'blur(4px)',
+            padding: '16px'
           }}
           onClick={closeEventModal}
         >
           <div
             style={{
               backgroundColor: 'white',
-              borderRadius: '24px',
-              padding: '32px',
+              borderRadius: '16px',
+              padding: '20px',
               width: '100%',
-              maxWidth: '450px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+              maxWidth: '340px',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.15)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Badge auto event */}
-            {selectedEvent.isAuto && (
+            {/* Header avec icône et badge */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
               <div style={{
-                display: 'inline-block',
-                padding: '4px 12px',
-                backgroundColor: '#F0F7FF',
-                color: '#3B82F6',
-                borderRadius: '50px',
-                fontSize: '12px',
-                fontWeight: '600',
-                marginBottom: '16px'
+                width: '44px',
+                height: '44px',
+                background: selectedEvent.isAuto 
+                  ? `linear-gradient(135deg, ${
+                      selectedEvent.event_type === 'ferie' ? '#3B82F6' :
+                      selectedEvent.event_type === 'commercial' ? '#F59E0B' :
+                      selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
+                    }, ${
+                      selectedEvent.event_type === 'ferie' ? '#60A5FA' :
+                      selectedEvent.event_type === 'commercial' ? '#FBBF24' :
+                      selectedEvent.event_type === 'fete' ? '#A78BFA' : '#34D399'
+                    })`
+                  : `linear-gradient(135deg, ${getEventColor(selectedEvent.event_type)}, ${getEventColor(selectedEvent.event_type)}99)`,
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                flexShrink: 0
               }}>
-                📅 Événement suggéré
+                {selectedEvent.isAuto 
+                  ? selectedEvent.title.split(' ')[0] 
+                  : eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || '📅'}
               </div>
-            )}
-            
-            <div style={{
-              width: '64px',
-              height: '64px',
-              background: selectedEvent.isAuto 
-                ? `linear-gradient(135deg, ${
-                    selectedEvent.event_type === 'ferie' ? '#3B82F6' :
-                    selectedEvent.event_type === 'commercial' ? '#F59E0B' :
-                    selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
-                  }, ${
-                    selectedEvent.event_type === 'ferie' ? '#60A5FA' :
-                    selectedEvent.event_type === 'commercial' ? '#FBBF24' :
-                    selectedEvent.event_type === 'fete' ? '#A78BFA' : '#34D399'
-                  })`
-                : `linear-gradient(135deg, ${getEventColor(selectedEvent.event_type)}, ${getEventColor(selectedEvent.event_type)}99)`,
-              borderRadius: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '28px',
-              marginBottom: '20px'
-            }}>
-              {selectedEvent.isAuto 
-                ? selectedEvent.title.split(' ')[0] 
-                : eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || '📅'}
+              
+              <div style={{ flex: 1 }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A2E', marginBottom: '4px', lineHeight: '1.3' }}>
+                  {selectedEvent.title}
+                </h3>
+                <p style={{ color: '#888', fontSize: '13px' }}>
+                  {selectedEvent.start.toLocaleDateString('fr-FR', { 
+                    weekday: 'short', 
+                    day: 'numeric', 
+                    month: 'short'
+                  })}
+                </p>
+              </div>
+              
+              {/* Bouton fermer */}
+              <button
+                onClick={closeEventModal}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: '#999',
+                  cursor: 'pointer',
+                  padding: '0',
+                  lineHeight: '1'
+                }}
+              >
+                ×
+              </button>
             </div>
 
-            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A2E', marginBottom: '8px' }}>
-              {selectedEvent.title}
-            </h2>
-            
-            <p style={{ color: '#666', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📅 {selectedEvent.start.toLocaleDateString('fr-FR', { 
-                weekday: 'long', 
-                day: 'numeric', 
-                month: 'long',
-                year: 'numeric'
-              })}
-            </p>
-            
-            <p style={{ 
+            {/* Badge type */}
+            <div style={{ 
               display: 'inline-block',
-              padding: '6px 12px',
+              padding: '4px 10px',
               backgroundColor: selectedEvent.isAuto 
                 ? `${
                     selectedEvent.event_type === 'ferie' ? '#3B82F6' :
                     selectedEvent.event_type === 'commercial' ? '#F59E0B' :
                     selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
-                  }20`
-                : `${getEventColor(selectedEvent.event_type)}20`,
+                  }15`
+                : `${getEventColor(selectedEvent.event_type)}15`,
               color: selectedEvent.isAuto 
                 ? (selectedEvent.event_type === 'ferie' ? '#3B82F6' :
                    selectedEvent.event_type === 'commercial' ? '#F59E0B' :
                    selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981')
                 : getEventColor(selectedEvent.event_type),
               borderRadius: '50px',
-              fontSize: '14px',
+              fontSize: '12px',
               fontWeight: '600',
-              marginBottom: '16px'
+              marginBottom: '12px'
             }}>
               {selectedEvent.isAuto 
                 ? (selectedEvent.event_type === 'ferie' ? '🏛️ Jour férié' :
                    selectedEvent.event_type === 'commercial' ? '🛍️ Commercial' :
                    selectedEvent.event_type === 'fete' ? '🎉 Fête' : '🌿 Saison')
                 : selectedEvent.event_type}
-            </p>
+            </div>
 
+            {/* Description si présente */}
             {selectedEvent.description && (
-              <p style={{ color: '#666', marginBottom: '24px', lineHeight: '1.6' }}>
+              <p style={{ color: '#666', fontSize: '13px', marginBottom: '16px', lineHeight: '1.5' }}>
                 {selectedEvent.description}
               </p>
             )}
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={closeEventModal}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  backgroundColor: '#F5F5F7',
-                  border: 'none',
-                  borderRadius: '12px',
-                  color: '#666',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                Fermer
-              </button>
-              <button
-                onClick={() => {
-                  closeEventModal();
-                  // Pour les événements auto, on va vers create avec le titre pré-rempli
-                  if (selectedEvent.isAuto) {
-                    navigate(`/create?title=${encodeURIComponent(selectedEvent.title)}`);
-                  } else {
-                    navigate(`/generate?event=${selectedEvent.id}`);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  background: 'linear-gradient(135deg, #FF6B35, #FF8F5E)',
-                  border: 'none',
-                  borderRadius: '12px',
-                  color: 'white',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
-                }}
-              >
-                ✨ Créer un post
-              </button>
+            {/* Bouton principal - Créer un post */}
+            <button
+              onClick={() => {
+                closeEventModal();
+                if (selectedEvent.isAuto) {
+                  navigate(`/create?title=${encodeURIComponent(selectedEvent.title)}`);
+                } else {
+                  navigate(`/generate?event=${selectedEvent.id}`);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '14px',
+                marginBottom: '12px',
+                boxShadow: '0 4px 12px rgba(255, 138, 101, 0.25)'
+              }}
+            >
+              ✨ Créer un post
+            </button>
+
+            {/* Options Modifier / Supprimer */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              gap: '16px',
+              paddingTop: '8px',
+              borderTop: '1px solid #F0F0F0'
+            }}>
+              {!selectedEvent.isAuto && (
+                <>
+                  <button
+                    onClick={() => {
+                      // TODO: Implémenter la modification
+                      alert('Fonctionnalité à venir');
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#666',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    ✏️ Modifier
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (confirm('Supprimer cet événement ?')) {
+                        try {
+                          const { error } = await supabase
+                            .from('events')
+                            .delete()
+                            .eq('id', selectedEvent.id);
+                          if (error) throw error;
+                          setUserEvents(prev => prev.filter(e => e.id !== selectedEvent.id));
+                          closeEventModal();
+                        } catch (err: any) {
+                          alert('Erreur: ' + err.message);
+                        }
+                      }
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#EF4444',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    🗑️ Supprimer
+                  </button>
+                </>
+              )}
+              {selectedEvent.isAuto && (
+                <span style={{ color: '#999', fontSize: '12px' }}>
+                  📅 Événement suggéré automatiquement
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -948,58 +951,102 @@ function CalendarPage() {
           gap: 4px;
         }
         
+        /* MOBILE RESPONSIVE */
         @media (max-width: 768px) {
-          .calendar-header {
+          /* Header */
+          header > div {
             padding: 12px 16px !important;
-          }
-          
-          .calendar-header-content {
             flex-wrap: wrap !important;
-            gap: 12px !important;
           }
           
-          .calendar-nav {
+          /* Cacher nav sur mobile */
+          header nav {
             display: none !important;
           }
           
-          .calendar-main {
+          /* Main */
+          main {
             padding: 16px !important;
           }
           
-          .calendar-title {
+          /* Titre */
+          main h1 {
             font-size: 24px !important;
           }
           
-          .calendar-legend {
+          /* Cacher légende sur mobile */
+          .event-legend {
             display: none !important;
           }
           
+          /* Calendar container */
+          main > div:last-of-type {
+            padding: 12px !important;
+          }
+          
+          /* Toolbar calendar */
           .rbc-toolbar {
             flex-direction: column !important;
             gap: 12px !important;
             padding: 12px !important;
           }
           
-          .rbc-toolbar button {
-            padding: 8px 12px !important;
-            font-size: 12px !important;
-          }
-          
           .rbc-toolbar-label {
             font-size: 16px !important;
+            order: -1 !important;
           }
           
-          .calendar-modal {
+          .rbc-toolbar button {
+            padding: 8px 10px !important;
+            font-size: 11px !important;
+          }
+          
+          /* Calendar hauteur réduite */
+          .rbc-calendar {
+            height: 450px !important;
+          }
+          
+          /* Events plus petits */
+          .rbc-event {
+            font-size: 10px !important;
+            padding: 1px 3px !important;
+          }
+          
+          /* Modal */
+          .event-modal > div {
             margin: 16px !important;
-            padding: 24px 20px !important;
+            padding: 20px !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
           }
           
-          .calendar-modal-buttons {
-            flex-direction: column !important;
-          }
-          
-          .event-types-grid {
+          /* Event types dans modal */
+          .event-types-selector {
+            display: grid !important;
             grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+          }
+          
+          .event-types-selector button {
+            padding: 8px !important;
+            font-size: 11px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .rbc-toolbar button {
+            padding: 6px 8px !important;
+            font-size: 10px !important;
+          }
+          
+          .rbc-header {
+            font-size: 11px !important;
+            padding: 6px !important;
+          }
+          
+          .rbc-date-cell {
+            font-size: 11px !important;
+            padding: 4px !important;
           }
         }
       `}</style>
