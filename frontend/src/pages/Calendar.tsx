@@ -749,11 +749,20 @@ function CalendarPage() {
             <button
               onClick={() => {
                 closeEventModal();
-                if (selectedEvent.isAuto) {
-                  navigate(`/create?title=${encodeURIComponent(selectedEvent.title)}`);
-                } else {
-                  navigate(`/generate?event=${selectedEvent.id}`);
+                // Construire les paramètres URL avec les infos de l'événement
+                const params = new URLSearchParams();
+                params.set('title', selectedEvent.title);
+                params.set('type', selectedEvent.event_type);
+                if (selectedEvent.description) {
+                  params.set('description', selectedEvent.description);
                 }
+                params.set('date', selectedEvent.start.toLocaleDateString('fr-FR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long'
+                }));
+                params.set('isAuto', selectedEvent.isAuto ? 'true' : 'false');
+                navigate(`/create?${params.toString()}`);
               }}
               style={{
                 width: '100%',

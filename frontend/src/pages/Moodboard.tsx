@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import logoAina from '/logo-aina.png';
+import AddressAutocomplete from '../components/AddressAutocomplete';
 
 interface Business {
   id: string;
@@ -9,10 +10,11 @@ interface Business {
   business_type: string;
   tone: string;
   address?: string;
-  phone?: string;
+  platforms?: string[];
   logo_url?: string;
   photos?: string[];
   keywords?: string[];
+  preferred_style?: string;
 }
 
 function Moodboard() {
@@ -27,11 +29,19 @@ function Moodboard() {
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('');
   const [tone, setTone] = useState('');
+  const [address, setAddress] = useState('');
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [preferredStyle, setPreferredStyle] = useState('');
   const [logo, setLogo] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [newKeyword, setNewKeyword] = useState('');
-  
+  const [uploading, setUploading] = useState(false);
+
+  // Phase 2: Sécurité - champs verrouillés après onboarding
+  const [isLocked, setIsLocked] = useState(false);
+  const [showUnlockRequest, setShowUnlockRequest] = useState(false);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,7 +58,15 @@ function Moodboard() {
     { value: 'Professionnel', icon: '👔', color: '#004E89' },
     { value: 'Familial', icon: '👨‍👩‍👧‍👦', color: '#10B981' },
     { value: 'Jeune', icon: '🎉', color: '#FF8A65' },
-    { value: 'Luxe', icon: '✨', color: '#8B5CF6' }
+    { value: 'Luxe', icon: '✨', color: '#8B5CF6' },
+    { value: 'Humour', icon: '😄', color: '#F59E0B' }
+  ];
+
+  const platformsList = [
+    { value: 'Instagram', icon: '📷', color: '#E4405F' },
+    { value: 'Facebook', icon: '👍', color: '#1877F2' },
+    { value: 'TikTok', icon: '🎵', color: '#000000' },
+    { value: 'LinkedIn', icon: '💼', color: '#0A66C2' }
   ];
 
   useEffect(() => {
@@ -79,31 +97,86 @@ function Moodboard() {
       setBusinessName(data.business_name || '');
       setBusinessType(data.business_type || '');
       setTone(data.tone || '');
+      setAddress(data.address || '');
+      setPlatforms(data.platforms || []);
+      setPreferredStyle(data.preferred_style || '');
       setLogo(data.logo_url || null);
       setPhotos(data.photos || []);
       setKeywords(data.keywords || []);
+      // Verrouiller si le profil est complet (onboarding terminé)
+      const isComplete = data.business_name && data.business_type && data.tone;
+      setIsLocked(isComplete);
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const togglePlatform = (platform: string) => {
+    if (platforms.includes(platform)) {
+      setPlatforms(platforms.filter(p => p !== platform));
+    } else {
+      setPlatforms([...platforms, platform]);
+    }
+  };
+
+  // Upload vers Supabase Storage
+  const uploadToStorage = async (file: File, path: string): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${path}/${Date.now()}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from('business-assets')
+      .upload(fileName, file);
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from('business-assets')
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setLogo(reader.result as string);
-      reader.readAsDataURL(file);
+      try {
+        setUploading(true);
+        const url = await uploadToStorage(file, 'logos');
+        setLogo(url);
+      } catch (err: any) {
+        // Fallback to base64 if storage fails
+        const reader = new FileReader();
+        reader.onloadend = () => setLogo(reader.result as string);
+        reader.readAsDataURL(file);
+      } finally {
+        setUploading(false);
+      }
     }
   };
 
-  const handlePhotosUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPhotos(prev => [...prev, reader.result as string].slice(0, 9));
-        };
-        reader.readAsDataURL(file);
-      });
+      setUploading(true);
+      const newPhotos: string[] = [];
+
+      for (const file of Array.from(files)) {
+        try {
+          const url = await uploadToStorage(file, 'photos');
+          newPhotos.push(url);
+        } catch (err) {
+          // Fallback to base64
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setPhotos(prev => [...prev, reader.result as string].slice(0, 9));
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+
+      if (newPhotos.length > 0) {
+        setPhotos(prev => [...prev, ...newPhotos].slice(0, 9));
+      }
+      setUploading(false);
     }
   };
 
@@ -132,6 +205,8 @@ function Moodboard() {
           business_name: businessName,
           business_type: businessType,
           tone: tone,
+          address: address || null,
+          platforms: platforms.length > 0 ? platforms : null,
           logo_url: logo,
           photos: photos,
           keywords: keywords
@@ -350,12 +425,45 @@ function Moodboard() {
               <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
               <div>
                 <p style={{ fontWeight: '600', fontSize: '14px', color: '#1A1A2E' }}>
-                  {logo ? '✓ Logo importé' : 'Ajouter un logo'}
+                  {uploading ? '⏳ Upload...' : logo ? '✓ Logo importé' : 'Ajouter un logo'}
                 </p>
                 <p style={{ fontSize: '12px', color: '#888' }}>PNG, JPG</p>
               </div>
             </div>
           </div>
+
+          {/* Style IA (lecture seule) */}
+          {preferredStyle && (
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: '16px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+              border: '1px solid #E5E7EB'
+            }}>
+              <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '12px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🤖 Style IA préféré
+              </h3>
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#F0FDF4',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '20px' }}>✨</span>
+                <div>
+                  <p style={{ fontWeight: '600', fontSize: '14px', color: '#166534', margin: 0 }}>
+                    {preferredStyle}
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
+                    Défini lors du calibrage initial
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Infos */}
           <div style={{
@@ -365,25 +473,148 @@ function Moodboard() {
             boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
             border: '1px solid #E5E7EB'
           }}>
-            <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '12px', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🏪 Informations
-            </h3>
-            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                🏪 Informations
+              </h3>
+              {isLocked && (
+                <span style={{
+                  padding: '4px 10px',
+                  backgroundColor: '#FEF3C7',
+                  color: '#D97706',
+                  borderRadius: '50px',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  🔒 Verrouillé
+                </span>
+              )}
+            </div>
+
+            {/* Alerte si verrouillé */}
+            {isLocked && (
+              <div style={{
+                backgroundColor: '#FEF3C7',
+                border: '1px solid #FCD34D',
+                borderRadius: '10px',
+                padding: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '18px' }}>🔐</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: '13px', color: '#92400E', margin: 0, fontWeight: '600' }}>
+                    Profil verrouillé
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#A16207', margin: '4px 0 8px' }}>
+                    Le nom de l'établissement est protégé après l'onboarding.
+                  </p>
+                  <button
+                    onClick={() => setShowUnlockRequest(true)}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#D97706',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: 'white',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Demander une modification
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal demande de modification */}
+            {showUnlockRequest && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '20px'
+              }}>
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  maxWidth: '400px',
+                  width: '100%',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
+                    📝 Demande de modification
+                  </h3>
+                  <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px' }}>
+                    Pour modifier le nom de votre établissement, veuillez contacter le support :
+                  </p>
+                  <div style={{
+                    backgroundColor: '#F0F7FF',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    marginBottom: '16px'
+                  }}>
+                    <p style={{ fontSize: '14px', color: '#004E89', margin: 0, fontWeight: '600' }}>
+                      📧 support@aina-app.com
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
+                      Indiquez votre commerce et les modifications souhaitées
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowUnlockRequest(false)}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      backgroundColor: '#1A1A2E',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Fermer
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>
                 Nom du commerce
+                {isLocked && <span style={{ fontSize: '12px' }}>🔒</span>}
               </label>
               <input
                 type="text"
                 value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                onChange={(e) => !isLocked && setBusinessName(e.target.value)}
+                disabled={isLocked}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  border: '2px solid #E5E7EB',
+                  border: `2px solid ${isLocked ? '#FCD34D' : '#E5E7EB'}`,
                   borderRadius: '10px',
                   fontSize: '14px',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  backgroundColor: isLocked ? '#FFFBEB' : 'white',
+                  color: isLocked ? '#92400E' : '#1A1A2E',
+                  cursor: isLocked ? 'not-allowed' : 'text'
                 }}
               />
             </div>
@@ -410,7 +641,21 @@ function Moodboard() {
               </div>
             </div>
 
-            <div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>
+                Adresse 📍
+              </label>
+              <AddressAutocomplete
+                value={address}
+                onChange={setAddress}
+                placeholder="Ex: 12 Rue Bonaparte, Ajaccio"
+              />
+              <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+                Commencez à taper pour voir les suggestions
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>
                 Ton
               </label>
@@ -430,6 +675,33 @@ function Moodboard() {
                   >{t.icon} {t.value}</button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>
+                Plateformes
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {platformsList.map(p => (
+                  <button
+                    key={p.value}
+                    onClick={() => togglePlatform(p.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: `2px solid ${platforms.includes(p.value) ? p.color : '#E5E7EB'}`,
+                      backgroundColor: platforms.includes(p.value) ? `${p.color}15` : 'white',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >{p.icon} {p.value}</button>
+                ))}
+              </div>
+              {platforms.length > 0 && (
+                <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>
+                  {platforms.length} sélectionnée(s)
+                </p>
+              )}
             </div>
           </div>
 

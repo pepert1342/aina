@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generatePostText, generateImage } from '../gemini';
 import logoAina from '/logo-aina.png';
+import ImageEditor from '../components/ImageEditor';
+
+type LogoPosition = 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'middle-center' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+type LogoSize = 'small' | 'medium' | 'large';
+type PhotoMode = 'direct' | 'inspiration' | null;
 
 interface Business {
   id: string;
@@ -13,28 +18,115 @@ interface Business {
   logo_url?: string;
   photos?: string[];
   address?: string;
+  preferred_style?: string;
+}
+
+interface SavedPost {
+  id: string;
+  image_url: string;
+  text_content?: string;
+  description?: string;
+  platform?: string;
+  style?: string;
 }
 
 function CreatePost() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
 
-  // Form
-  const [postDescription, setPostDescription] = useState('');
+  // Paramètres d'événement depuis l'URL
+  const eventTitle = searchParams.get('title');
+  const eventType = searchParams.get('type');
+  const eventDescription = searchParams.get('description');
+  const eventDate = searchParams.get('date');
+
+  // Form - Descriptions séparées
+  const [imageDescription, setImageDescription] = useState('');
+  const [textDescription, setTextDescription] = useState('');
+
+  // Pré-remplir les descriptions si on vient d'un événement
+  useEffect(() => {
+    if (eventTitle) {
+      // Construire une description pour l'image basée sur l'événement
+      let imgDesc = '';
+      let txtDesc = '';
+
+      // Adapter selon le type d'événement
+      const typeLabels: Record<string, string> = {
+        'ferie': 'jour férié',
+        'commercial': 'événement commercial',
+        'fete': 'fête',
+        'promotion': 'promotion',
+        'autre': 'événement'
+      };
+
+      const typeLabel = typeLabels[eventType || ''] || 'événement';
+
+      // Description pour l'image
+      imgDesc = `Visuel pour ${eventTitle}`;
+      if (eventDate) {
+        imgDesc += ` (${eventDate})`;
+      }
+      imgDesc += `. Créer une image attrayante et festive pour promouvoir cet ${typeLabel}.`;
+
+      // Description pour la légende
+      txtDesc = `Post pour ${eventTitle}`;
+      if (eventDate) {
+        txtDesc += ` le ${eventDate}`;
+      }
+      txtDesc += '.';
+      if (eventDescription) {
+        txtDesc += ` ${eventDescription}`;
+      }
+      txtDesc += ` Créer une légende engageante pour cet ${typeLabel}.`;
+
+      setImageDescription(imgDesc);
+      setTextDescription(txtDesc);
+    }
+  }, [eventTitle, eventType, eventDescription, eventDate]);
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
   const [selectedFormat, setSelectedFormat] = useState('carre');
+
+  // Contrôles avancés pour l'image
+  const [imageStyle, setImageStyle] = useState('photo_realiste');
+  const [imageAmbiance, setImageAmbiance] = useState('');
+  const [imageColors, setImageColors] = useState('');
 
   // Generation
   const [generating, setGenerating] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [generatedTexts, setGeneratedTexts] = useState<string[]>([]);
+  const [editedTexts, setEditedTexts] = useState<string[]>([]); // Textes modifiés par l'utilisateur
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // Index du texte en cours d'édition
   const [error, setError] = useState('');
   const [imageError, setImageError] = useState('');
+
+  // Historique pour IA
+  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Phase 4: Photo upload + Logo
+  const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+  const [photoMode, setPhotoMode] = useState<PhotoMode>(null);
+  const [showLogoOptions, setShowLogoOptions] = useState(false);
+  const [logoPosition, setLogoPosition] = useState<LogoPosition>('bottom-right');
+  const [logoSize, setLogoSize] = useState<LogoSize>('medium');
+  const [addLogo, setAddLogo] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Éditeur d'image
+  const [showImageEditor, setShowImageEditor] = useState(false);
+
+  // Onglets
+  const [activeTab, setActiveTab] = useState<'image' | 'texte'>('image');
+
 
   useEffect(() => {
     checkUser();
@@ -55,13 +147,68 @@ function CreatePost() {
       .single();
 
     if (businessData) setBusiness(businessData);
+
+    // Charger l'historique des posts pour l'IA
+    const { data: postsData } = await supabase
+      .from('posts_history')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (postsData) setSavedPosts(postsData);
+
     setLoading(false);
     setTimeout(() => setIsVisible(true), 100);
   };
 
+  // Gestion upload photo
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedPhoto(reader.result as string);
+        setPhotoMode(null); // Reset le mode pour forcer le choix
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeUploadedPhoto = () => {
+    setUploadedPhoto(null);
+    setPhotoMode(null);
+  };
+
+  // Position CSS du logo
+  const getLogoPositionStyle = (position: LogoPosition): React.CSSProperties => {
+    const positions: Record<LogoPosition, React.CSSProperties> = {
+      'top-left': { top: '10px', left: '10px' },
+      'top-center': { top: '10px', left: '50%', transform: 'translateX(-50%)' },
+      'top-right': { top: '10px', right: '10px' },
+      'middle-left': { top: '50%', left: '10px', transform: 'translateY(-50%)' },
+      'middle-center': { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
+      'middle-right': { top: '50%', right: '10px', transform: 'translateY(-50%)' },
+      'bottom-left': { bottom: '10px', left: '10px' },
+      'bottom-center': { bottom: '10px', left: '50%', transform: 'translateX(-50%)' },
+      'bottom-right': { bottom: '10px', right: '10px' }
+    };
+    return positions[position];
+  };
+
+  // Taille du logo en pixels
+  const getLogoSizePixels = (size: LogoSize): number => {
+    const sizes: Record<LogoSize, number> = {
+      'small': 40,
+      'medium': 60,
+      'large': 80
+    };
+    return sizes[size];
+  };
+
   const handleGenerateText = async () => {
-    if (!business || !postDescription.trim()) {
-      setError('Veuillez décrire votre post');
+    if (!business || !textDescription.trim()) {
+      setError('Veuillez décrire votre légende');
       return;
     }
 
@@ -71,6 +218,12 @@ function CreatePost() {
     setSelectedVersion(null);
 
     try {
+      // Construire le contexte avec l'historique des posts
+      const previousDescriptions = savedPosts
+        .filter(p => p.description)
+        .map(p => p.description)
+        .slice(0, 5);
+
       const moodboard = {
         keywords: business.keywords,
         logo_url: business.logo_url,
@@ -78,16 +231,73 @@ function CreatePost() {
         address: business.address
       };
 
+      // Ajouter le contexte historique dans la description
+      const enrichedDescription = previousDescriptions.length > 0
+        ? `${textDescription}\n\n[CONTEXTE - Posts précédents pour cohérence de style: ${previousDescriptions.join(' | ')}]`
+        : textDescription;
+
       const texts = await generatePostText(
         business.business_name,
         business.business_type,
-        postDescription,
+        enrichedDescription,
         '',
         business.tone || 'Familial',
         selectedPlatform,
         moodboard
       );
       setGeneratedTexts(texts);
+      setEditedTexts(texts); // Initialiser les textes éditables avec les textes générés
+      setEditingIndex(null);
+    } catch (error: any) {
+      setError('Erreur: ' + error.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Mettre à jour un texte édité
+  const handleTextEdit = (index: number, newText: string) => {
+    const updated = [...editedTexts];
+    updated[index] = newText;
+    setEditedTexts(updated);
+  };
+
+  // Régénérer uniquement le texte (pas l'image)
+  const handleRegenerateText = async () => {
+    if (!business || !textDescription.trim()) return;
+
+    setGenerating(true);
+    setError('');
+
+    try {
+      const previousDescriptions = savedPosts
+        .filter(p => p.description)
+        .map(p => p.description)
+        .slice(0, 5);
+
+      const moodboard = {
+        keywords: business.keywords,
+        logo_url: business.logo_url,
+        photos: business.photos,
+        address: business.address
+      };
+
+      const enrichedDescription = previousDescriptions.length > 0
+        ? `${textDescription}\n\n[CONTEXTE - Posts précédents pour cohérence de style: ${previousDescriptions.join(' | ')}]`
+        : textDescription;
+
+      const texts = await generatePostText(
+        business.business_name,
+        business.business_type,
+        enrichedDescription,
+        '',
+        business.tone || 'Familial',
+        selectedPlatform,
+        moodboard
+      );
+      setGeneratedTexts(texts);
+      setEditedTexts(texts);
+      setEditingIndex(null);
     } catch (error: any) {
       setError('Erreur: ' + error.message);
     } finally {
@@ -96,8 +306,14 @@ function CreatePost() {
   };
 
   const handleGenerateImage = async () => {
-    if (!business || !postDescription.trim()) {
-      setImageError('Veuillez décrire votre post');
+    if (!business || !imageDescription.trim()) {
+      setImageError('Veuillez décrire votre visuel');
+      return;
+    }
+
+    // Si photo uploadée en mode "direct", on l'utilise directement
+    if (uploadedPhoto && photoMode === 'direct') {
+      setGeneratedImage(uploadedPhoto);
       return;
     }
 
@@ -106,18 +322,52 @@ function CreatePost() {
     setGeneratedImage(null);
 
     try {
+      // Construire le moodboard avec la photo d'inspiration si applicable
+      const photosForMoodboard = [...(business.photos || [])];
+      if (uploadedPhoto && photoMode === 'inspiration') {
+        photosForMoodboard.unshift(uploadedPhoto); // Ajouter la photo uploadée en premier
+      }
+
       const moodboard = {
         keywords: business.keywords,
         logo_url: business.logo_url,
-        photos: business.photos,
+        photos: photosForMoodboard,
         address: business.address
       };
+
+      // Construire la description enrichie avec les contrôles avancés
+      let enrichedDescription = `Format: ${selectedFormat === 'carre' ? 'carré 1:1' : 'story vertical 9:16'}`;
+
+      // Style d'image
+      const styleLabels: Record<string, string> = {
+        'photo_realiste': 'Photo réaliste, haute qualité, professionnelle',
+        'illustration': 'Illustration graphique, design moderne',
+        'aquarelle': 'Style aquarelle artistique',
+        'minimaliste': 'Design minimaliste, épuré, moderne',
+        'vintage': 'Style vintage, rétro',
+        'flat_design': 'Flat design, couleurs vives, vectoriel'
+      };
+      enrichedDescription += `\n\nSTYLE: ${styleLabels[imageStyle] || 'Photo réaliste'}`;
+
+      // Ambiance
+      if (imageAmbiance) {
+        enrichedDescription += `\nAMBIANCE: ${imageAmbiance}`;
+      }
+
+      // Couleurs
+      if (imageColors) {
+        enrichedDescription += `\nCOULEURS DOMINANTES: ${imageColors}`;
+      }
+
+      if (uploadedPhoto && photoMode === 'inspiration') {
+        enrichedDescription += `\n\nIMPORTANT: S'inspirer fortement de l'ambiance, des couleurs et du style de la photo fournie par l'utilisateur pour créer une image cohérente.`;
+      }
 
       const imageData = await generateImage(
         business.business_name,
         business.business_type,
-        postDescription,
-        `Format: ${selectedFormat === 'carre' ? 'carré 1:1' : 'story vertical 9:16'}`,
+        imageDescription,
+        enrichedDescription,
         business.tone || 'Familial',
         moodboard
       );
@@ -135,16 +385,159 @@ function CreatePost() {
 
   const handleCopyText = () => {
     if (selectedVersion === null) return;
-    navigator.clipboard.writeText(generatedTexts[selectedVersion]);
+    // Copier le texte édité (pas l'original)
+    navigator.clipboard.writeText(editedTexts[selectedVersion]);
     alert('✅ Texte copié !');
   };
 
-  const handleDownloadImage = () => {
+  // Fonction pour calculer la position du logo sur le canvas
+  const getLogoCanvasPosition = (
+    canvasWidth: number,
+    canvasHeight: number,
+    logoWidth: number,
+    logoHeight: number,
+    position: LogoPosition
+  ): { x: number; y: number } => {
+    const margin = 20;
+    const positions: Record<LogoPosition, { x: number; y: number }> = {
+      'top-left': { x: margin, y: margin },
+      'top-center': { x: (canvasWidth - logoWidth) / 2, y: margin },
+      'top-right': { x: canvasWidth - logoWidth - margin, y: margin },
+      'middle-left': { x: margin, y: (canvasHeight - logoHeight) / 2 },
+      'middle-center': { x: (canvasWidth - logoWidth) / 2, y: (canvasHeight - logoHeight) / 2 },
+      'middle-right': { x: canvasWidth - logoWidth - margin, y: (canvasHeight - logoHeight) / 2 },
+      'bottom-left': { x: margin, y: canvasHeight - logoHeight - margin },
+      'bottom-center': { x: (canvasWidth - logoWidth) / 2, y: canvasHeight - logoHeight - margin },
+      'bottom-right': { x: canvasWidth - logoWidth - margin, y: canvasHeight - logoHeight - margin }
+    };
+    return positions[position];
+  };
+
+  // Télécharger l'image avec logo fusionné via Canvas
+  const handleDownloadImage = async () => {
     if (!generatedImage) return;
-    const link = document.createElement('a');
-    link.href = generatedImage;
-    link.download = `post-${Date.now()}.png`;
-    link.click();
+
+    // Si pas de logo activé, télécharger directement
+    if (!addLogo || !business?.logo_url) {
+      const link = document.createElement('a');
+      link.href = generatedImage;
+      link.download = `post-${Date.now()}.png`;
+      link.click();
+      return;
+    }
+
+    // Créer le canvas pour fusionner image + logo
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Charger l'image principale
+    const mainImage = new Image();
+    mainImage.crossOrigin = 'anonymous';
+
+    mainImage.onload = async () => {
+      // Définir la taille du canvas selon le format
+      let canvasWidth = mainImage.width;
+      let canvasHeight = mainImage.height;
+
+      // Si l'image est plus petite, utiliser des dimensions par défaut
+      if (canvasWidth < 500) {
+        canvasWidth = selectedFormat === 'carre' ? 1080 : selectedFormat === 'story' ? 1080 : 1920;
+        canvasHeight = selectedFormat === 'carre' ? 1080 : selectedFormat === 'story' ? 1920 : 1080;
+      }
+
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+
+      // Dessiner l'image principale
+      ctx.drawImage(mainImage, 0, 0, canvasWidth, canvasHeight);
+
+      // Charger et dessiner le logo
+      const logoImg = new Image();
+      logoImg.crossOrigin = 'anonymous';
+
+      logoImg.onload = () => {
+        // Calculer la taille du logo (proportionnel à la taille du canvas)
+        const logoScale = canvasWidth / 400; // Ratio de base
+        const sizes: Record<LogoSize, number> = {
+          'small': 60 * logoScale,
+          'medium': 90 * logoScale,
+          'large': 120 * logoScale
+        };
+        const logoDisplaySize = sizes[logoSize];
+
+        // Calculer la position
+        const pos = getLogoCanvasPosition(canvasWidth, canvasHeight, logoDisplaySize, logoDisplaySize, logoPosition);
+
+        // Dessiner le logo
+        ctx.drawImage(logoImg, pos.x, pos.y, logoDisplaySize, logoDisplaySize);
+
+        // Télécharger l'image fusionnée
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `post-${business.business_name}-${Date.now()}.png`;
+        link.click();
+      };
+
+      logoImg.onerror = () => {
+        // Si le logo ne charge pas, télécharger sans
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `post-${Date.now()}.png`;
+        link.click();
+      };
+
+      logoImg.src = business.logo_url!;
+    };
+
+    mainImage.onerror = () => {
+      // Fallback: télécharger l'image originale
+      const link = document.createElement('a');
+      link.href = generatedImage;
+      link.download = `post-${Date.now()}.png`;
+      link.click();
+    };
+
+    mainImage.src = generatedImage;
+  };
+
+  const handleSavePost = async () => {
+    if (!generatedImage || !user || !business) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('posts_history')
+        .insert([{
+          user_id: user.id,
+          business_id: business.id,
+          image_url: generatedImage,
+          text_content: selectedVersion !== null ? editedTexts[selectedVersion] : null,
+          description: imageDescription || textDescription,
+          platform: selectedPlatform,
+          tone: business.tone,
+          style: business.preferred_style
+        }]);
+
+      if (error) throw error;
+
+      setSaved(true);
+      // Ajouter le post à la liste locale
+      setSavedPosts(prev => [{
+        id: Date.now().toString(),
+        image_url: generatedImage,
+        text_content: selectedVersion !== null ? generatedTexts[selectedVersion] : undefined,
+        description: imageDescription || textDescription,
+        platform: selectedPlatform,
+        style: business.preferred_style
+      }, ...prev]);
+
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error: any) {
+      alert('Erreur: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -318,29 +711,120 @@ function CreatePost() {
           </div>
         </div>
 
-        {/* Description Input */}
+        {/* Onglets */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '16px',
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          padding: '6px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+          border: '1px solid #DCE8F5'
+        }}>
+          <button
+            onClick={() => setActiveTab('image')}
+            style={{
+              flex: 1,
+              padding: '14px 20px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'image'
+                ? 'linear-gradient(135deg, #FF8A65, #FFB088)'
+                : 'transparent',
+              color: activeTab === 'image' ? 'white' : '#666',
+              fontWeight: '700',
+              fontSize: '15px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'image' ? '0 4px 15px rgba(255, 138, 101, 0.3)' : 'none'
+            }}
+          >
+            🎨 Image / Flyer
+          </button>
+          <button
+            onClick={() => setActiveTab('texte')}
+            style={{
+              flex: 1,
+              padding: '14px 20px',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'texte'
+                ? 'linear-gradient(135deg, #004E89, #0077CC)'
+                : 'transparent',
+              color: activeTab === 'texte' ? 'white' : '#666',
+              fontWeight: '700',
+              fontSize: '15px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease',
+              boxShadow: activeTab === 'texte' ? '0 4px 15px rgba(0, 78, 137, 0.3)' : 'none'
+            }}
+          >
+            ✍️ Légende
+          </button>
+        </div>
+
+        
+        {/* Contenu Onglet IMAGE */}
+        {activeTab === 'image' && (
+          <>
+        {/* Bannière événement si applicable */}
+        {eventTitle && (
+          <div style={{
+            background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+            borderRadius: '16px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'
+          }}>
+            <span style={{ fontSize: '24px' }}>📅</span>
+            <div>
+              <p style={{ color: 'white', fontWeight: '700', fontSize: '15px', margin: 0 }}>
+                {eventTitle}
+              </p>
+              {eventDate && (
+                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '4px 0 0' }}>
+                  {eventDate}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Description du visuel */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '20px',
           padding: '24px',
-          marginBottom: '24px',
+          marginBottom: '20px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
           border: '1px solid #DCE8F5'
         }}>
           <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px' }}>
-            📝 Décrivez votre post
+            🎨 Décrivez votre visuel
           </label>
           <textarea
-            value={postDescription}
-            onChange={(e) => setPostDescription(e.target.value)}
-            placeholder="Ex: Je veux promouvoir mon plat du jour, une daube de sanglier avec polenta crémeuse. Ambiance chaleureuse et gourmande."
-            rows={4}
+            value={imageDescription}
+            onChange={(e) => setImageDescription(e.target.value)}
+            placeholder="Ex: Une photo appétissante de mon plat du jour, une daube de sanglier avec polenta crémeuse, ambiance chaleureuse de restaurant."
+            rows={3}
             style={{
               width: '100%',
               padding: '16px',
               border: '2px solid #E5E7EB',
               borderRadius: '12px',
-              fontSize: '16px',
+              fontSize: '15px',
               resize: 'none',
               outline: 'none',
               boxSizing: 'border-box',
@@ -349,14 +833,99 @@ function CreatePost() {
               transition: 'all 0.3s ease'
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#004E89';
-              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0, 78, 137, 0.1)';
+              e.currentTarget.style.borderColor = '#FF8A65';
+              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 138, 101, 0.1)';
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = '#E5E7EB';
               e.currentTarget.style.boxShadow = 'none';
             }}
           />
+
+          {/* Contrôles avancés */}
+          <div style={{ marginTop: '20px' }}>
+            <p style={{ fontWeight: '600', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+              ⚙️ Options avancées
+            </p>
+
+            {/* Style d'image */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                Style d'image
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {[
+                  { value: 'photo_realiste', label: '📷 Photo réaliste' },
+                  { value: 'illustration', label: '🎨 Illustration' },
+                  { value: 'minimaliste', label: '◻️ Minimaliste' },
+                  { value: 'vintage', label: '📜 Vintage' },
+                  { value: 'flat_design', label: '🔶 Flat design' }
+                ].map((style) => (
+                  <button
+                    key={style.value}
+                    onClick={() => setImageStyle(style.value)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '20px',
+                      border: imageStyle === style.value ? 'none' : '2px solid #E5E7EB',
+                      background: imageStyle === style.value ? 'linear-gradient(135deg, #FF8A65, #FFB088)' : 'white',
+                      color: imageStyle === style.value ? 'white' : '#666',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {style.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Ambiance */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                Ambiance (optionnel)
+              </label>
+              <input
+                type="text"
+                value={imageAmbiance}
+                onChange={(e) => setImageAmbiance(e.target.value)}
+                placeholder="Ex: chaleureuse, festive, moderne, épurée..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Couleurs */}
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: '#666', marginBottom: '8px' }}>
+                Couleurs dominantes (optionnel)
+              </label>
+              <input
+                type="text"
+                value={imageColors}
+                onChange={(e) => setImageColors(e.target.value)}
+                placeholder="Ex: rouge et doré, tons pastel, noir et blanc..."
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Configuration Bar - Horizontal avec gros boutons */}
@@ -536,34 +1105,279 @@ function CreatePost() {
             </div>
           </div>
 
-          {/* Bouton Générer */}
+          {/* Section Photo Upload */}
+          <div style={{ marginBottom: '20px' }}>
+            <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+              📸 Ajouter une photo (optionnel)
+            </span>
+
+            {!uploadedPhoto ? (
+              <div
+                onClick={() => photoInputRef.current?.click()}
+                style={{
+                  border: '2px dashed #E5E7EB',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: '#FAFBFC',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+                <p style={{ color: '#666', fontSize: '13px', margin: 0 }}>
+                  Cliquez pour ajouter une photo
+                </p>
+                <p style={{ color: '#999', fontSize: '11px', marginTop: '4px' }}>
+                  L'IA peut l'utiliser directement ou s'en inspirer
+                </p>
+              </div>
+            ) : (
+              <div>
+                {/* Preview photo */}
+                <div style={{ position: 'relative', marginBottom: '12px' }}>
+                  <img
+                    src={uploadedPhoto}
+                    alt="Upload"
+                    style={{
+                      width: '100%',
+                      maxHeight: '150px',
+                      objectFit: 'cover',
+                      borderRadius: '12px'
+                    }}
+                  />
+                  <button
+                    onClick={removeUploadedPhoto}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(0,0,0,0.6)',
+                      border: 'none',
+                      color: 'white',
+                      fontSize: '16px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >×</button>
+                </div>
+
+                {/* Mode selection */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setPhotoMode('direct')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: `2px solid ${photoMode === 'direct' ? '#10B981' : '#E5E7EB'}`,
+                      backgroundColor: photoMode === 'direct' ? '#D1FAE5' : 'white',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>🖼️</div>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#1A1A2E' }}>Utiliser directement</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>Cette photo sera le post</div>
+                  </button>
+                  <button
+                    onClick={() => setPhotoMode('inspiration')}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: `2px solid ${photoMode === 'inspiration' ? '#8B5CF6' : '#E5E7EB'}`,
+                      backgroundColor: photoMode === 'inspiration' ? '#EDE9FE' : 'white',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>✨</div>
+                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#1A1A2E' }}>Inspiration</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>L'IA s'inspire du style</div>
+                  </button>
+                </div>
+
+                {photoMode === null && (
+                  <p style={{ fontSize: '11px', color: '#DC2626', marginTop: '8px', textAlign: 'center' }}>
+                    Veuillez choisir comment utiliser cette photo
+                  </p>
+                )}
+              </div>
+            )}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              style={{ display: 'none' }}
+            />
+          </div>
+
+          {/* Section Logo */}
+          {business?.logo_url && (
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <span style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '14px' }}>
+                  🏷️ Ajouter votre logo
+                </span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={addLogo}
+                    onChange={(e) => {
+                      setAddLogo(e.target.checked);
+                      if (e.target.checked) setShowLogoOptions(true);
+                    }}
+                    style={{ width: '18px', height: '18px', accentColor: '#10B981' }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#666' }}>Activer</span>
+                </label>
+              </div>
+
+              {addLogo && (
+                <div style={{
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  border: '1px solid #E5E7EB'
+                }}>
+                  {/* Preview logo */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <img
+                      src={business.logo_url}
+                      alt="Logo"
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        backgroundColor: 'white',
+                        padding: '4px'
+                      }}
+                    />
+                    <div>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0 }}>
+                        Logo de {business.business_name}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#888', margin: '2px 0 0' }}>
+                        Récupéré depuis votre Moodboard
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Position Grid */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
+                      Position
+                    </span>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '4px',
+                      width: '120px',
+                      margin: '0 auto'
+                    }}>
+                      {(['top-left', 'top-center', 'top-right', 'middle-left', 'middle-center', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'] as LogoPosition[]).map((pos) => (
+                        <button
+                          key={pos}
+                          onClick={() => setLogoPosition(pos)}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '6px',
+                            border: `2px solid ${logoPosition === pos ? '#10B981' : '#E5E7EB'}`,
+                            backgroundColor: logoPosition === pos ? '#D1FAE5' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px'
+                          }}
+                        >
+                          {logoPosition === pos ? '✓' : ''}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Size Selection */}
+                  <div>
+                    <span style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
+                      Taille
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      {([
+                        { value: 'small', label: 'Petit', size: '24px' },
+                        { value: 'medium', label: 'Moyen', size: '32px' },
+                        { value: 'large', label: 'Grand', size: '40px' }
+                      ] as { value: LogoSize; label: string; size: string }[]).map((s) => (
+                        <button
+                          key={s.value}
+                          onClick={() => setLogoSize(s.value)}
+                          style={{
+                            padding: '8px 16px',
+                            borderRadius: '8px',
+                            border: `2px solid ${logoSize === s.value ? '#10B981' : '#E5E7EB'}`,
+                            backgroundColor: logoSize === s.value ? '#D1FAE5' : 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <div style={{
+                            width: s.size,
+                            height: s.size,
+                            backgroundColor: '#004E89',
+                            borderRadius: '4px'
+                          }} />
+                          <span style={{ fontSize: '11px', color: '#666' }}>{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Bouton Générer Image */}
           <button
-            onClick={handleGenerateAll}
-            disabled={generating || generatingImage || !postDescription.trim()}
+            onClick={handleGenerateImage}
+            disabled={generatingImage || !imageDescription.trim() || (uploadedPhoto && photoMode === null)}
             style={{
               width: '100%',
               padding: '14px',
-              background: generating || generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
               border: 'none',
               borderRadius: '12px',
-              color: generating || generatingImage ? '#999' : 'white',
+              color: generatingImage ? '#999' : 'white',
               fontWeight: '700',
-              cursor: generating || generatingImage ? 'not-allowed' : 'pointer',
+              cursor: generatingImage ? 'not-allowed' : 'pointer',
               fontSize: '15px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: generating || generatingImage ? 'none' : '0 4px 15px rgba(255, 138, 101, 0.3)'
+              boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(255, 138, 101, 0.3)'
             }}
           >
-            {generating || generatingImage ? (
+            {generatingImage ? (
               <>⏳ Génération en cours...</>
             ) : (
-              <>🚀 Tout Générer</>
+              <>🎨 Générer l'image</>
             )}
           </button>
         </div>
+        </>
+        )}
 
         {/* Error Messages */}
         {error && (
@@ -579,16 +1393,107 @@ function CreatePost() {
           </div>
         )}
 
-        {/* Results Section - En colonne sur mobile */}
-        <div className="results-section" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* Textes Générés */}
+        {/* Section Textes Générés - Onglet TEXTE */}
+        {activeTab === 'texte' && (
+          <>
+          {/* Bannière événement si applicable */}
+          {eventTitle && (
+            <div style={{
+              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              borderRadius: '16px',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'
+            }}>
+              <span style={{ fontSize: '24px' }}>📅</span>
+              <div>
+                <p style={{ color: 'white', fontWeight: '700', fontSize: '15px', margin: 0 }}>
+                  {eventTitle}
+                </p>
+                {eventDate && (
+                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '4px 0 0' }}>
+                    {eventDate}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Description de la légende */}
           <div style={{
+            backgroundColor: 'white',
+            borderRadius: '20px',
+            padding: '24px',
+            marginBottom: '20px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+            border: '1px solid #DCE8F5'
+          }}>
+            <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px' }}>
+              ✍️ Décrivez votre légende
+            </label>
+            <textarea
+              value={textDescription}
+              onChange={(e) => setTextDescription(e.target.value)}
+              placeholder="Ex: Je veux promouvoir mon plat du jour, une daube de sanglier. Mentionner le prix (18€) et que c'est fait maison."
+              rows={3}
+              style={{
+                width: '100%',
+                padding: '16px',
+                border: '2px solid #E5E7EB',
+                borderRadius: '12px',
+                fontSize: '15px',
+                resize: 'none',
+                outline: 'none',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                lineHeight: '1.6',
+                transition: 'all 0.3s ease',
+                marginBottom: '16px'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#004E89';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0, 78, 137, 0.1)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#E5E7EB';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            />
+            <button
+              onClick={handleGenerateText}
+              disabled={generating || !textDescription.trim()}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #004E89, #0077CC)',
+                border: 'none',
+                borderRadius: '12px',
+                color: generating ? '#999' : 'white',
+                fontWeight: '700',
+                cursor: generating ? 'not-allowed' : 'pointer',
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: generating ? 'none' : '0 4px 15px rgba(0, 78, 137, 0.3)'
+              }}
+            >
+              {generating ? '⏳ Génération en cours...' : '✍️ Générer les légendes'}
+            </button>
+          </div>
+
+        {/* Résultats des légendes */}
+        <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
             padding: '16px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-            border: '1px solid #DCE8F5'
+            border: '1px solid #DCE8F5',
+            marginBottom: '20px'
           }}>
             <h3 style={{ fontWeight: '700', color: '#1A1A2E', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
               <span style={{
@@ -600,14 +1505,14 @@ function CreatePost() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px'
-              }}>✨</span>
-              Textes Générés
+              }}>✍️</span>
+              Légendes Générées
             </h3>
 
             {generatedTexts.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '40px 16px', 
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 16px',
                 color: '#999',
                 background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
                 borderRadius: '12px',
@@ -618,7 +1523,7 @@ function CreatePost() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {generatedTexts.map((text, index) => (
+                {editedTexts.map((text, index) => (
                   <div
                     key={index}
                     onClick={() => setSelectedVersion(index)}
@@ -642,36 +1547,128 @@ function CreatePost() {
                       }}>
                         {index === 0 ? '📝 Courte' : index === 1 ? '📄 Moyenne' : '📚 Longue'}
                       </span>
-                      {selectedVersion === index && (
-                        <span style={{ backgroundColor: '#004E89', color: 'white', padding: '3px 10px', borderRadius: '50px', fontSize: '11px', fontWeight: '600' }}>
-                          ✓ Sélectionnée
-                        </span>
-                      )}
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                        {editedTexts[index] !== generatedTexts[index] && (
+                          <span style={{
+                            backgroundColor: '#FEF3C7',
+                            color: '#D97706',
+                            padding: '3px 8px',
+                            borderRadius: '50px',
+                            fontSize: '10px',
+                            fontWeight: '600'
+                          }}>
+                            ✏️ Modifié
+                          </span>
+                        )}
+                        {selectedVersion === index && (
+                          <span style={{ backgroundColor: '#004E89', color: 'white', padding: '3px 10px', borderRadius: '50px', fontSize: '11px', fontWeight: '600' }}>
+                            ✓ Sélectionnée
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p style={{ color: '#444', fontSize: '13px', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{text}</p>
+
+                    {/* Textarea éditable quand sélectionné */}
+                    {selectedVersion === index ? (
+                      <textarea
+                        value={text}
+                        onChange={(e) => handleTextEdit(index, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          minHeight: '120px',
+                          padding: '12px',
+                          border: '2px solid #004E89',
+                          borderRadius: '8px',
+                          fontSize: '13px',
+                          lineHeight: '1.6',
+                          resize: 'vertical',
+                          fontFamily: 'inherit',
+                          backgroundColor: 'white',
+                          boxSizing: 'border-box',
+                          outline: 'none'
+                        }}
+                      />
+                    ) : (
+                      <p style={{
+                        color: '#444',
+                        fontSize: '13px',
+                        lineHeight: '1.5',
+                        whiteSpace: 'pre-wrap',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 4,
+                        WebkitBoxOrient: 'vertical'
+                      }}>
+                        {text}
+                      </p>
+                    )}
                   </div>
                 ))}
-                <button
-                  onClick={handleCopyText}
-                  disabled={selectedVersion === null}
-                  style={{
-                    padding: '12px',
-                    background: selectedVersion !== null ? 'linear-gradient(135deg, #10B981, #34D399)' : '#E5E7EB',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: selectedVersion !== null ? 'white' : '#999',
-                    fontWeight: '600',
-                    cursor: selectedVersion !== null ? 'pointer' : 'not-allowed',
-                    fontSize: '14px'
-                  }}
-                >
-                  📋 Copier le texte sélectionné
-                </button>
+
+                {/* Boutons d'action */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={handleCopyText}
+                    disabled={selectedVersion === null}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: selectedVersion !== null ? 'linear-gradient(135deg, #10B981, #34D399)' : '#E5E7EB',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: selectedVersion !== null ? 'white' : '#999',
+                      fontWeight: '600',
+                      cursor: selectedVersion !== null ? 'pointer' : 'not-allowed',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    📋 Copier
+                  </button>
+                  <button
+                    onClick={handleRegenerateText}
+                    disabled={generating}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: generating ? '#999' : 'white',
+                      fontWeight: '600',
+                      cursor: generating ? 'not-allowed' : 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {generating ? '⏳ Génération...' : '🔄 Régénérer'}
+                  </button>
+                </div>
+
+                {/* Astuce édition */}
+                <p style={{
+                  fontSize: '11px',
+                  color: '#888',
+                  textAlign: 'center',
+                  margin: '4px 0 0'
+                }}>
+                  💡 Cliquez sur un texte pour le sélectionner et le modifier directement
+                </p>
               </div>
             )}
           </div>
+          </>
+        )}
 
-          {/* Image Générée */}
+          {/* Image Générée - Onglet IMAGE */}
+          {activeTab === 'image' && (
           <div style={{
             backgroundColor: 'white',
             borderRadius: '16px',
@@ -730,34 +1727,160 @@ function CreatePost() {
                   borderRadius: '12px',
                   overflow: 'hidden',
                   boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
-                  marginBottom: '12px'
+                  marginBottom: '12px',
+                  position: 'relative'
                 }}>
                   <img src={generatedImage} alt="Generated" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+
+                  {/* Logo Overlay */}
+                  {addLogo && business?.logo_url && (
+                    <div style={{
+                      position: 'absolute',
+                      ...getLogoPositionStyle(logoPosition),
+                      zIndex: 10
+                    }}>
+                      <img
+                        src={business.logo_url}
+                        alt="Logo"
+                        style={{
+                          width: `${getLogoSizePixels(logoSize)}px`,
+                          height: `${getLogoSizePixels(logoSize)}px`,
+                          objectFit: 'contain',
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={handleDownloadImage}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    background: 'linear-gradient(135deg, #10B981, #34D399)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: 'white',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontSize: '14px'
-                  }}
-                >
-                  💾 Télécharger l'image
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <button
+                    onClick={() => setShowImageEditor(true)}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)'
+                    }}
+                  >
+                    ✏️ Ajouter du texte
+                  </button>
+                  <button
+                    onClick={handleGenerateImage}
+                    disabled={generatingImage}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: generatingImage ? '#999' : 'white',
+                      fontWeight: '600',
+                      cursor: generatingImage ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(139, 92, 246, 0.3)'
+                    }}
+                  >
+                    {generatingImage ? '⏳ Génération...' : '🔄 Régénérer'}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={handleDownloadImage}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: 'linear-gradient(135deg, #10B981, #34D399)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    💾 Télécharger
+                  </button>
+                  <button
+                    onClick={handleSavePost}
+                    disabled={saving || saved}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      background: saved
+                        ? 'linear-gradient(135deg, #10B981, #34D399)'
+                        : 'linear-gradient(135deg, #004E89, #0077CC)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: saving ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      opacity: saving ? 0.7 : 1,
+                      boxShadow: saved ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(0, 78, 137, 0.3)'
+                    }}
+                  >
+                    {saving ? '⏳ Sauvegarde...' : saved ? '✓ Sauvegardé !' : '📌 Sauvegarder'}
+                  </button>
+                </div>
+
+                {saved && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    backgroundColor: '#D1FAE5',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#065F46',
+                    textAlign: 'center'
+                  }}>
+                    ✅ Post sauvegardé ! L'IA s'en inspirera pour vos futurs posts.
+                  </div>
+                )}
               </div>
             )}
           </div>
-        </div>
+          )}
+
+        {/* Indicateur d'historique */}
+        {savedPosts.length > 0 && (
+          <div style={{
+            backgroundColor: '#F0F7FF',
+            borderRadius: '12px',
+            padding: '12px 16px',
+            marginTop: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{ fontSize: '20px' }}>🤖</span>
+            <p style={{ fontSize: '12px', color: '#004E89', margin: 0 }}>
+              L'IA s'inspire de vos {savedPosts.length} post(s) précédent(s) pour maintenir votre style
+            </p>
+          </div>
+        )}
       </main>
 
       {/* CSS */}
@@ -767,6 +1890,11 @@ function CreatePost() {
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-5px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         
         textarea::placeholder {
@@ -861,6 +1989,19 @@ function CreatePost() {
           }
         }
       `}</style>
+
+      {/* Image Editor Modal */}
+      {showImageEditor && generatedImage && (
+        <ImageEditor
+          imageUrl={generatedImage}
+          businessName={business?.business_name}
+          onSave={(editedImageUrl) => {
+            setGeneratedImage(editedImageUrl);
+            setShowImageEditor(false);
+          }}
+          onCancel={() => setShowImageEditor(false)}
+        />
+      )}
     </div>
   );
 }

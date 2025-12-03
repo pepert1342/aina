@@ -1,10 +1,23 @@
-// server/index.js - Backend pour Imagen 3
+// server/index.js - Backend pour Imagen 3 + Stripe
 const express = require('express');
 const cors = require('cors');
 const { GoogleAuth } = require('google-auth-library');
+const Stripe = require('stripe');
 
 const app = express();
 app.use(cors());
+
+// Stripe configuration
+const STRIPE_SECRET_KEY = 'sk_test_51Sa51O7zjlETwK15TJTdWIH100jg8aKfBszdWnSgL972N4Kbhqeg2pgdvOI1lpmtKghdGLSijqsFAfSbvJpk0xoh00phWe9xi6';
+const stripe = new Stripe(STRIPE_SECRET_KEY);
+
+const STRIPE_PRICES = {
+  monthly: 'price_1Sa55Z7zjlETwK15FYLLGruq',
+  yearly: 'price_1Sa56E7zjlETwK15pwkpfOjb'
+};
+
+// Webhook needs raw body
+app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 
 // Configuration Google Cloud
@@ -150,9 +163,191 @@ app.post('/api/generate-text', async (req, res) => {
   }
 });
 
+// ============================================
+// STRIPE ENDPOINTS
+// ============================================
+
+// Créer une session Stripe Checkout
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    const { userId, email, priceType, promoCode } = req.body;
+
+    if (!userId || !email || !priceType) {
+      return res.status(400).json({ error: 'Paramètres manquants' });
+    }
+
+    const priceId = STRIPE_PRICES[priceType];
+    if (!priceId) {
+      return res.status(400).json({ error: 'Type de prix invalide' });
+    }
+
+    console.log('💳 Création session Stripe pour:', email, priceType);
+
+    // Chercher ou créer le customer Stripe
+    let customer;
+    const existingCustomers = await stripe.customers.list({ email: email, limit: 1 });
+
+    if (existingCustomers.data.length > 0) {
+      customer = existingCustomers.data[0];
+    } else {
+      customer = await stripe.customers.create({
+        email: email,
+        metadata: { userId: userId }
+      });
+    }
+
+    // Préparer les options de la session
+    const sessionOptions = {
+      customer: customer.id,
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1
+      }],
+      mode: 'subscription',
+      success_url: `${req.headers.origin || 'http://localhost:5173'}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.origin || 'http://localhost:5173'}/pricing`,
+      metadata: {
+        userId: userId,
+        priceType: priceType
+      },
+      subscription_data: {
+        metadata: {
+          userId: userId,
+          priceType: priceType
+        }
+      }
+    };
+
+    // Ajouter le code promo si présent
+    if (promoCode) {
+      // Map des codes promo vers leurs IDs Stripe
+      const PROMO_CODE_IDS = {
+        'PEPE20': 'promo_1SaE9p7zjlETwK157vjvH8eP',
+        'AINA20': 'promo_1SaE9p7zjlETwK157vjvH8eP',
+        'LAUNCH20': 'promo_1SaE9p7zjlETwK157vjvH8eP'
+      };
+
+      const promoId = PROMO_CODE_IDS[promoCode.toUpperCase()];
+      if (promoId) {
+        sessionOptions.discounts = [{ promotion_code: promoId }];
+        console.log('✅ Code promo appliqué:', promoCode, '->', promoId);
+      } else {
+        console.log('⚠️ Code promo non reconnu:', promoCode);
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
+
+    console.log('✅ Session créée:', session.id);
+    res.json({ url: session.url });
+
+  } catch (error) {
+    console.error('❌ Erreur Stripe:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Annuler un abonnement
+app.post('/api/cancel-subscription', async (req, res) => {
+  try {
+    const { subscriptionId } = req.body;
+
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'subscriptionId requis' });
+    }
+
+    console.log('🔄 Annulation abonnement:', subscriptionId);
+
+    // Annuler à la fin de la période
+    const subscription = await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true
+    });
+
+    console.log('✅ Abonnement annulé à la fin de la période');
+    res.json({ success: true, subscription });
+
+  } catch (error) {
+    console.error('❌ Erreur annulation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Réactiver un abonnement
+app.post('/api/reactivate-subscription', async (req, res) => {
+  try {
+    const { subscriptionId } = req.body;
+
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'subscriptionId requis' });
+    }
+
+    console.log('🔄 Réactivation abonnement:', subscriptionId);
+
+    const subscription = await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: false
+    });
+
+    console.log('✅ Abonnement réactivé');
+    res.json({ success: true, subscription });
+
+  } catch (error) {
+    console.error('❌ Erreur réactivation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Webhook Stripe pour les événements
+app.post('/api/stripe-webhook', async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  // En production, ajoutez votre webhook secret ici
+  // const endpointSecret = 'whsec_...';
+
+  let event;
+
+  try {
+    // En mode test, on parse directement
+    event = JSON.parse(req.body.toString());
+    console.log('📩 Webhook Stripe reçu:', event.type);
+  } catch (err) {
+    console.error('❌ Erreur webhook:', err);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Gérer les événements
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object;
+      console.log('✅ Paiement réussi pour:', session.customer_email);
+      // Ici vous pouvez ajouter la logique pour créer l'abonnement dans Supabase
+      // via un appel API ou directement si vous avez le client Supabase
+      break;
+
+    case 'customer.subscription.updated':
+      const subscription = event.data.object;
+      console.log('🔄 Abonnement mis à jour:', subscription.id);
+      break;
+
+    case 'customer.subscription.deleted':
+      const deletedSub = event.data.object;
+      console.log('❌ Abonnement supprimé:', deletedSub.id);
+      break;
+
+    case 'invoice.payment_failed':
+      const invoice = event.data.object;
+      console.log('❌ Paiement échoué pour:', invoice.customer_email);
+      break;
+
+    default:
+      console.log('📩 Événement non géré:', event.type);
+  }
+
+  res.json({ received: true });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'AiNa Backend running 🚀' });
+  res.json({ status: 'ok', message: 'AiNa Backend running 🚀', stripe: 'configured' });
 });
 
 const PORT = process.env.PORT || 3001;
