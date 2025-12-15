@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
@@ -6,7 +6,7 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { generateYearEvents } from '../autoEvents';
-import { HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon, DiamondIcon, LogoutIcon, PaletteIcon, DownloadIcon, CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon, CalendarIcon } from '../components/Icons';
+import { HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon, DiamondIcon, LogoutIcon, PaletteIcon, DownloadIcon, CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
 const locales = { 'fr': fr };
@@ -42,7 +42,7 @@ function CalendarPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<string>('month');
+  const [currentView, setCurrentView] = useState<'month' | 'week' | 'day' | 'agenda'>('month');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const [pendingEventId, setPendingEventId] = useState<string | null>(null);
@@ -468,7 +468,7 @@ function CalendarPage() {
     setCurrentDate(newDate);
   };
 
-  const handleViewChange = (view: string) => {
+  const handleViewChange = (view: 'month' | 'week' | 'day' | 'agenda') => {
     setCurrentView(view);
   };
 
@@ -943,7 +943,7 @@ function CalendarPage() {
             date={currentDate}
             onNavigate={handleNavigate}
             view={currentView}
-            onView={handleViewChange}
+            onView={handleViewChange as (view: any) => void}
             views={['month', 'week', 'day', 'agenda']}
             messages={{
               next: "›",

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import {
-  HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon,
-  DiamondIcon, LogoutIcon, PaletteIcon, CalendarIcon, TagIcon,
-  CopyIcon, TrashIcon, StarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon
+  HomeIcon, PlusIcon, LoaderIcon,
+  DiamondIcon, LogoutIcon, PaletteIcon, CalendarIcon,
+  CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon
 } from '../components/Icons';
 
 interface Template {
@@ -45,7 +45,8 @@ function Templates() {
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [_subscription, setSubscription] = useState<any>(null);
+  void _subscription;
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 

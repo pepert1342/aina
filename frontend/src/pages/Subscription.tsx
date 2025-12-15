@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { HomeIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, SparklesIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { HomeIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
 interface Subscription {

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoAina from '/logo-aina.png';
 
 function App() {
   const navigate = useNavigate();

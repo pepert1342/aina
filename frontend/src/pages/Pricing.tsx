@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { HomeIcon, SparklesIcon, CheckIcon, AlertIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
-
-const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Sa51O7zjlETwK15vLdjukeWvtPWzQB8dlx0iPV1cwysWOqQisfZB0rUWEkGoFwOgU1jcuWRFf2AHJ1EVytwAU2B00I4RpDIpR';
+import { HomeIcon, SparklesIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
 
 // Prix Stripe
 const PRICES = {

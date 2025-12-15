@@ -85,14 +85,16 @@ function Dashboard() {
   const [tips, setTips] = useState<Tip[]>([]);
   const [loadingTips, setLoadingTips] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'posts' | 'tips' | 'stats'>('home');
-  const [showStatsPage, setShowStatsPage] = useState(false);
+  const [_showStatsPage, setShowStatsPage] = useState(false);
+  void _showStatsPage;
   const [postsSubTab, setPostsSubTab] = useState<'posts' | 'templates'>('templates');
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [selectedPost, setSelectedPost] = useState<SavedPost | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
-  const [hiddenEventKeys, setHiddenEventKeys] = useState<Set<string>>(new Set());
+  const [_hiddenEventKeys, setHiddenEventKeys] = useState<Set<string>>(new Set());
+  void _hiddenEventKeys;
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -274,7 +276,7 @@ function Dashboard() {
   };
 
   // Charger les événements masqués
-  const loadHiddenEvents = async (userId: string) => {
+  const _loadHiddenEvents = async (userId: string) => {
     const { data } = await supabase
       .from('hidden_events')
       .select('event_key')
@@ -284,6 +286,7 @@ function Dashboard() {
       setHiddenEventKeys(new Set(data.map(e => e.event_key)));
     }
   };
+  void _loadHiddenEvents;
 
   // Masquer un événement suggéré
   const hideEvent = async (eventKey: string) => {
@@ -407,7 +410,7 @@ function Dashboard() {
     const allEvents = [...autoEventsData, ...manualEventsFormatted, ...localEventsFormatted]
       .filter(event => {
         // Ne pas filtrer les événements manuels (ils peuvent être supprimés autrement)
-        if (event.isManual) return true;
+        if ((event as any).isManual) return true;
         // Filtrer les événements suggérés masqués
         const dateStr = event.date.toISOString().split('T')[0];
         const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -710,7 +713,6 @@ function Dashboard() {
   // Mini calendrier
   const today = new Date();
   const currentMonth = today.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).getDay();
   const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
@@ -1174,7 +1176,7 @@ function Dashboard() {
             {getGreeting()}, {business?.business_name || 'there'}
           </h1>
           <p style={{ fontSize: '13px', opacity: 0.9 }}>
-            {business?.logo_url && business?.photos && business.photos.length > 0
+            {business?.logo_url
               ? 'Prêt à créer du contenu ?'
               : 'Configurez votre profil pour commencer'}
           </p>
@@ -1319,7 +1321,7 @@ function Dashboard() {
                 Moodboard
               </h3>
               <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px' }}>
-                {business?.logo_url && business?.photos && business.photos.length > 0
+                {business?.logo_url
                   ? 'Gérez votre identité visuelle'
                   : 'Configurez votre profil'}
               </p>
@@ -2377,7 +2379,7 @@ function Dashboard() {
                 </p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {savedPosts.slice(0, 5).map((post, index) => (
+                  {savedPosts.slice(0, 5).map((post, _index) => (
                     <div
                       key={post.id}
                       style={{

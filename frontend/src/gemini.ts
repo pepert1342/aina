@@ -434,7 +434,7 @@ export async function generateImagePrompt(
   businessName: string,
   businessType: string,
   eventTitle: string,
-  eventDescription: string,
+  _eventDescription: string,
   tone: string,
   moodboard?: MoodboardData
 ): Promise<string> {

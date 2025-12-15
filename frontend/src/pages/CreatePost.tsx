@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generatePostText, generateImage, generateImageFromTemplate, modifyImageWithConversation } from '../gemini';
@@ -7,8 +7,8 @@ import {
   HomeIcon, SparklesIcon, PaletteIcon, TextIcon, CalendarIcon,
   CameraIcon, ImageIcon, TagIcon, SettingsIcon, DownloadIcon,
   SaveIcon, CopyIcon, RefreshIcon, CheckIcon, AlertIcon,
-  EditIcon, UploadIcon, CloseIcon, SquareIcon, RectangleVerticalIcon,
-  LoaderIcon, DiamondIcon, LogoutIcon, PlusIcon, TemplateIcon, TrendingUpIcon, LightbulbIcon
+  EditIcon, UploadIcon, SquareIcon,
+  LoaderIcon, DiamondIcon, LogoutIcon, PlusIcon, TemplateIcon, TrendingUpIcon
 } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
@@ -182,7 +182,8 @@ function CreatePost() {
   const [editedTexts, setEditedTexts] = useState<string[]>([]); // Textes modifiés par l'utilisateur
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<number | null>(null);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null); // Index du texte en cours d'édition
+  const [_editingIndex, setEditingIndex] = useState<number | null>(null); // Index du texte en cours d'édition
+  void _editingIndex;
   const [error, setError] = useState('');
   const [imageError, setImageError] = useState('');
 
@@ -216,7 +217,8 @@ function CreatePost() {
   // Phase 4: Photo upload + Logo
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [photoMode, setPhotoMode] = useState<PhotoMode>(null);
-  const [showLogoOptions, setShowLogoOptions] = useState(false);
+  const [_showLogoOptions, setShowLogoOptions] = useState(false);
+  void _showLogoOptions;
   const [logoPosition, setLogoPosition] = useState<LogoPosition>('bottom-right');
   const [logoSize, setLogoSize] = useState<LogoSize>('medium');
   const [addLogo, setAddLogo] = useState(false);
@@ -681,9 +683,10 @@ ${enrichedDescription}`;
     setImageError('');
   };
 
-  const handleGenerateAll = async () => {
+  const _handleGenerateAll = async () => {
     await Promise.all([handleGenerateText(), handleGenerateImage()]);
   };
+  void _handleGenerateAll; // Reserved for future use
 
   const handleCopyText = () => {
     if (selectedVersion === null) return;
@@ -2165,7 +2168,7 @@ ${enrichedDescription}`;
           boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
           border: '1px solid #DCE8F5'
         }}>
-          <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <label style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PaletteIcon size={18} color="#c84b31" />
             Décrivez votre visuel
           </label>
@@ -2726,7 +2729,7 @@ ${enrichedDescription}`;
           {/* Bouton Générer Image */}
           <button
             onClick={handleGenerateImage}
-            disabled={generatingImage || !imageDescription.trim() || (uploadedPhoto && photoMode === null)}
+            disabled={generatingImage || !imageDescription.trim() || (!!uploadedPhoto && photoMode === null)}
             style={{
               width: '100%',
               padding: '14px',

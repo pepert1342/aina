@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface TextElement {
   id: string;
@@ -37,16 +37,14 @@ const COLORS = [
   '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'
 ];
 
-function ImageEditor({ imageUrl, onSave, onCancel, businessName, initialTexts }: ImageEditorProps) {
+function ImageEditor({ imageUrl, onSave, onCancel, initialTexts }: ImageEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [textElements, setTextElements] = useState<TextElement[]>(initialTexts || []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 400, height: 400 });
-  const [scale, setScale] = useState(1); // Pour gérer le scale CSS vs Canvas
   const imageRef = useRef<HTMLImageElement | null>(null);
 
   // Charger l'image

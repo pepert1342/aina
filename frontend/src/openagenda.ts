@@ -33,13 +33,13 @@ interface OpenAgendaEvent {
   };
 }
 
-interface OpenAgendaResponse {
+export interface OpenAgendaResponse {
   total: number;
   events: OpenAgendaEvent[];
 }
 
 // Liste des agendas publics populaires en France par région
-const REGIONAL_AGENDAS: Record<string, number[]> = {
+export const REGIONAL_AGENDAS: Record<string, number[]> = {
   // Format: département -> liste d'UIDs d'agendas OpenAgenda
   'default': [
     // Agendas nationaux/généraux
@@ -51,7 +51,7 @@ const REGIONAL_AGENDAS: Record<string, number[]> = {
  * Convertit une adresse en coordonnées GPS via Nominatim (OpenStreetMap)
  * Note: Désactivé car CORS bloqué depuis le navigateur
  */
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+export async function geocodeAddress(_address: string): Promise<{ lat: number; lng: number } | null> {
   // Geocoding désactivé - on utilise la recherche par ville à la place
   // L'API Nominatim bloque les requêtes depuis localhost (CORS)
   return null;

@@ -129,7 +129,7 @@ export function generateYearEvents(year: number): { date: Date; title: string; t
   });
   
   // Fête des mères (dernier dimanche de mai)
-  const feteDesMeres = getNthDayOfMonth(year, 4, 0, 4); // 4ème dimanche de mai généralement, mais c'est le dernier
+  const _feteDesMeres = getNthDayOfMonth(year, 4, 0, 4); void _feteDesMeres; // 4ème dimanche de mai généralement, mais c'est le dernier
   // En fait c'est plus complexe, on simplifie au dernier dimanche de mai
   const lastSundayMay = new Date(year, 5, 0); // Dernier jour de mai
   while (lastSundayMay.getDay() !== 0) {

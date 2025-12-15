@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generatePostText, generateImage } from '../gemini';
 import { NotificationBell } from '../components/Notifications';
-import { DiamondIcon, LogoutIcon, PlusIcon, PaletteIcon, CalendarIcon, ImageIcon, SparklesIcon, CheckIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { DiamondIcon, LogoutIcon, PlusIcon, PaletteIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
 
 interface Business {
   id: string;
@@ -48,11 +48,12 @@ function GeneratePost() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
 
-  const platforms = [
+  const _platforms = [
     { value: 'Instagram', icon: '📸', color: '#E4405F' },
     { value: 'Facebook', icon: '📘', color: '#1877F2' },
     { value: 'TikTok', icon: '🎵', color: '#000000' }
   ];
+  void _platforms; // Reserved for future use
 
   useEffect(() => {
     checkUserAndLoadData();
