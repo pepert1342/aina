@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generateur d'icones AiNa</title>
+  <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f0f0f0;
+      font-family: 'Inter', sans-serif;
+      padding: 40px;
+      gap: 30px;
+    }
+    h1 { color: #333; margin-bottom: 10px; }
+    p { color: #666; margin-bottom: 20px; }
+    .icons-container {
+      display: flex;
+      gap: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .icon-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+    canvas {
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+    .label { font-size: 14px; color: #666; font-weight: 600; }
+    button {
+      padding: 12px 24px;
+      background: #C84B31;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #a83d28; }
+    .download-all {
+      padding: 16px 32px;
+      font-size: 16px;
+      background: linear-gradient(135deg, #C84B31, #FF6B35);
+    }
+    .instructions {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 600px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .instructions h2 { color: #C84B31; margin-bottom: 12px; }
+    .instructions ol { text-align: left; padding-left: 20px; }
+    .instructions li { margin: 8px 0; color: #444; }
+    .instructions code {
+      background: #f5f5f5;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generateur d'icones PWA AiNa</h1>
+  <p>Cliquez sur les boutons pour telecharger chaque icone</p>
+
+  <div class="icons-container">
+    <div class="icon-wrapper">
+      <canvas id="canvas512" width="512" height="512"></canvas>
+      <span class="label">512x512 (PWA)</span>
+      <button onclick="download('canvas512', 'icon-512.png')">Telecharger</button>
+    </div>
+    <div class="icon-wrapper">
+      <canvas id="canvas192" width="192" height="192"></canvas>
+      <span class="label">192x192 (Android)</span>
+      <button onclick="download('canvas192', 'icon-192.png')">Telecharger</button>
+    </div>
+    <div class="icon-wrapper">
+      <canvas id="canvas180" width="180" height="180"></canvas>
+      <span class="label">180x180 (iOS)</span>
+      <button onclick="download('canvas180', 'apple-touch-icon.png')">Telecharger</button>
+    </div>
+  </div>
+
+  <button class="download-all" onclick="downloadAll()">Telecharger toutes les icones</button>
+
+  <div class="instructions">
+    <h2>Instructions</h2>
+    <ol>
+      <li>Telechargez les 3 icones ci-dessus</li>
+      <li>Placez-les dans le dossier <code>frontend/public/</code></li>
+      <li>Assurez-vous que les noms sont : <code>icon-512.png</code>, <code>icon-192.png</code>, <code>apple-touch-icon.png</code></li>
+      <li>Votre PWA est prete !</li>
+    </ol>
+  </div>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const radius = size * 0.15;
+
+      // Fond beige avec coins arrondis
+      ctx.fillStyle = '#F4E4C9';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fill();
+
+      // Texte AiNa avec Titan One
+      ctx.fillStyle = '#C84B31';
+      ctx.font = `${size * 0.31}px 'Titan One', cursive`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('AiNa', size / 2, size / 2 + size * 0.02);
+    }
+
+    function download(canvasId, filename) {
+      const canvas = document.getElementById(canvasId);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function downloadAll() {
+      download('canvas512', 'icon-512.png');
+      setTimeout(() => download('canvas192', 'icon-192.png'), 500);
+      setTimeout(() => download('canvas180', 'apple-touch-icon.png'), 1000);
+    }
+
+    // Attendre le chargement de la police
+    document.fonts.ready.then(() => {
+      drawIcon(document.getElementById('canvas512'));
+      drawIcon(document.getElementById('canvas192'));
+      drawIcon(document.getElementById('canvas180'));
+    });
+  </script>
+</body>
+</html>

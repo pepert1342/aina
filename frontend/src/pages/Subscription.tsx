@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import logoAina from '/logo-aina.png';
+import { HomeIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, SparklesIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { NotificationBell } from '../components/Notifications';
 
 interface Subscription {
   id: string;
@@ -21,6 +22,7 @@ function SubscriptionPage() {
   const [canceling, setCanceling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     checkUser();
@@ -41,7 +43,7 @@ function SubscriptionPage() {
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (subData) {
       setSubscription(subData);
@@ -49,6 +51,11 @@ function SubscriptionPage() {
 
     setLoading(false);
     setTimeout(() => setIsVisible(true), 100);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   const handleCancelSubscription = async () => {
@@ -125,13 +132,35 @@ function SubscriptionPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
-        fontFamily: "'Inter', -apple-system, sans-serif"
+        background: '#FFF8E7',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif"
       }}>
         <div style={{ textAlign: 'center' }}>
-          <img src={logoAina} alt="AiNa" style={{ width: '60px', height: '60px', marginBottom: '16px' }} />
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '16px',
+            animation: 'spin 1.5s ease-in-out infinite'
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+            </svg>
+          </div>
+          <span style={{
+            fontSize: '32px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31',
+            display: 'block',
+            marginBottom: '8px'
+          }}>AiNa</span>
           <p style={{ color: '#666' }}>Chargement...</p>
         </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(180deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -139,14 +168,14 @@ function SubscriptionPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #F0F7FF 0%, #FFFFFF 50%, #FFF5F2 100%)',
-      fontFamily: "'Inter', -apple-system, sans-serif",
+      background: 'linear-gradient(135deg, #e8f4fd 0%, #FFFFFF 50%, #FFF8E7 100%)',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
       opacity: isVisible ? 1 : 0,
       transition: 'opacity 0.5s ease'
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         borderBottom: '1px solid #E5E7EB',
         padding: '12px 16px',
         display: 'flex',
@@ -154,34 +183,285 @@ function SubscriptionPage() {
         justifyContent: 'space-between'
       }}>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
           onClick={() => navigate('/dashboard')}
         >
-          <img src={logoAina} alt="AiNa" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
           <span style={{
-            fontSize: '22px',
-            fontWeight: '800',
-            fontFamily: "'Poppins', sans-serif",
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+            fontSize: '28px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31'
           }}>AiNa</span>
         </div>
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: 'transparent',
-            border: '2px solid #E5E7EB',
-            borderRadius: '8px',
-            color: '#666',
-            fontWeight: '600',
-            cursor: 'pointer',
-            fontSize: '13px'
-          }}
-        >
-          ← Retour
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {user && <NotificationBell userId={user.id} />}
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+              border: 'none',
+              borderRadius: '10px',
+              color: 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '13px',
+              boxShadow: '0 4px 15px rgba(26, 58, 92, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <HomeIcon size={14} color="white" /> Accueil
+          </button>
+
+          {/* Menu Profil */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+                border: 'none',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              P
+            </button>
+
+            {showUserMenu && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 99
+                  }}
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                  padding: '8px',
+                  minWidth: '220px',
+                  zIndex: 100,
+                  border: '1px solid #E5E7EB'
+                }}>
+                  <div style={{
+                    padding: '12px',
+                    borderBottom: '1px solid #E5E7EB',
+                    marginBottom: '8px'
+                  }}>
+                    <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E', margin: 0 }}>
+                      {user?.email}
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
+                      {subscription ? `Abonnement ${subscription.plan === 'yearly' ? 'Annuel' : 'Mensuel'}` : 'Aucun abonnement'}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/subscription'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: '#F3F4F6',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151'
+                    }}
+                  >
+                    <DiamondIcon size={18} color="#2d5a45" />
+                    Mon abonnement
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/create'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <PlusIcon size={18} color="#c84b31" />
+                    Nouveau Post
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/calendar'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <CalendarIcon size={18} color="#1a3a5c" />
+                    Calendrier
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/moodboard'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <PaletteIcon size={18} color="#2d5a45" />
+                    Moodboard
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=posts'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <ImageIcon size={18} color="#8B5CF6" />
+                    Mes Posts
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=tips'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <LightbulbIcon size={18} color="#2d5a45" />
+                    Tips & Conseils
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=stats'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <TrendingUpIcon size={18} color="#8B5CF6" />
+                    Statistiques
+                  </button>
+
+                  <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '8px 0' }} />
+
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#DC2626',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <LogoutIcon size={18} color="#DC2626" />
+                    Déconnexion
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -223,8 +503,8 @@ function SubscriptionPage() {
                   fontWeight: '600'
                 }}>
                   {subscription.status === 'active'
-                    ? (subscription.cancel_at_period_end ? '⏳ Annulation prévue' : '✅ Actif')
-                    : '❌ Inactif'}
+                    ? (subscription.cancel_at_period_end ? 'Annulation prévue' : <><CheckIcon size={12} color="#10B981" /> Actif</>)
+                    : <><CloseIcon size={12} color="#EF4444" /> Inactif</>}
                 </div>
               </div>
 
@@ -333,14 +613,14 @@ function SubscriptionPage() {
               onClick={() => navigate('/pricing')}
               style={{
                 padding: '14px 32px',
-                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
                 border: 'none',
                 borderRadius: '10px',
                 color: 'white',
                 fontWeight: '600',
                 cursor: 'pointer',
                 fontSize: '14px',
-                boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)'
+                boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)'
               }}
             >
               Voir les offres

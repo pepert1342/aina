@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import logoAina from '/logo-aina.png';
+import { HomeIcon, SparklesIcon, CheckIcon, AlertIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
 
 const STRIPE_PUBLISHABLE_KEY = 'pk_test_51Sa51O7zjlETwK15vLdjukeWvtPWzQB8dlx0iPV1cwysWOqQisfZB0rUWEkGoFwOgU1jcuWRFf2AHJ1EVytwAU2B00I4RpDIpR';
 
@@ -30,6 +30,21 @@ function Pricing() {
   const [promoError, setPromoError] = useState('');
   const [processing, setProcessing] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ show: false, title: '', message: '', onConfirm: () => {} });
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ show: true, title, message, onConfirm });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: () => {} });
+  };
 
   // Codes promo valides
   const validPromoCodes: Record<string, number> = {
@@ -56,7 +71,7 @@ function Pricing() {
       .select('*')
       .eq('user_id', session.user.id)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (subscription) {
       navigate('/dashboard');
@@ -65,6 +80,11 @@ function Pricing() {
 
     setLoading(false);
     setTimeout(() => setIsVisible(true), 100);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   const applyPromoCode = () => {
@@ -121,27 +141,30 @@ function Pricing() {
       console.error('Erreur:', error);
 
       // Fallback: créer l'abonnement en mode test si backend non disponible
-      const confirmTest = window.confirm('Erreur de connexion au serveur de paiement. Voulez-vous continuer en mode test ?');
+      showConfirm(
+        'Mode Test',
+        'Erreur de connexion au serveur de paiement. Voulez-vous continuer en mode test ?',
+        async () => {
+          const { error: insertError } = await supabase
+            .from('subscriptions')
+            .insert([{
+              user_id: user.id,
+              plan: selectedPlan,
+              status: 'active',
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(Date.now() + (selectedPlan === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
+              stripe_customer_id: 'test_customer_' + user.id,
+              stripe_subscription_id: 'test_sub_' + Date.now()
+            }]);
 
-      if (confirmTest) {
-        const { error: insertError } = await supabase
-          .from('subscriptions')
-          .insert([{
-            user_id: user.id,
-            plan: selectedPlan,
-            status: 'active',
-            current_period_start: new Date().toISOString(),
-            current_period_end: new Date(Date.now() + (selectedPlan === 'yearly' ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString(),
-            stripe_customer_id: 'test_customer_' + user.id,
-            stripe_subscription_id: 'test_sub_' + Date.now()
-          }]);
-
-        if (!insertError) {
-          navigate('/dashboard');
-        } else {
-          alert('Erreur lors de la création de l\'abonnement test');
+          if (!insertError) {
+            closeConfirmModal();
+            navigate('/dashboard');
+          } else {
+            alert('Erreur lors de la création de l\'abonnement test');
+          }
         }
-      }
+      );
     } finally {
       setProcessing(false);
     }
@@ -154,13 +177,35 @@ function Pricing() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
-        fontFamily: "'Inter', -apple-system, sans-serif"
+        background: '#FFF8E7',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif"
       }}>
         <div style={{ textAlign: 'center' }}>
-          <img src={logoAina} alt="AiNa" style={{ width: '60px', height: '60px', marginBottom: '16px' }} />
+          <div style={{
+            fontSize: '48px',
+            marginBottom: '16px',
+            animation: 'spin 1.5s ease-in-out infinite'
+          }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+            </svg>
+          </div>
+          <span style={{
+            fontSize: '32px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31',
+            display: 'block',
+            marginBottom: '8px'
+          }}>AiNa</span>
           <p style={{ color: '#666' }}>Chargement...</p>
         </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(180deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -171,30 +216,300 @@ function Pricing() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #F0F7FF 0%, #FFFFFF 50%, #FFF5F2 100%)',
-      fontFamily: "'Inter', -apple-system, sans-serif",
+      background: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif",
       opacity: isVisible ? 1 : 0,
       transition: 'opacity 0.5s ease'
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         borderBottom: '1px solid #E5E7EB',
         padding: '12px 16px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'space-between',
+        maxWidth: '600px',
+        margin: '0 auto'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <img src={logoAina} alt="AiNa" style={{ width: '44px', height: '44px', objectFit: 'contain' }} />
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{
-            fontSize: '22px',
-            fontWeight: '800',
-            fontFamily: "'Poppins', sans-serif",
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+            fontSize: '28px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31'
           }}>AiNa</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => navigate('/dashboard')}
+            style={{
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+              border: 'none',
+              borderRadius: '10px',
+              color: 'white',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '13px',
+              boxShadow: '0 4px 15px rgba(26, 58, 92, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <HomeIcon size={14} color="white" /> Accueil
+          </button>
+
+          {/* Menu Profil */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+                border: 'none',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              P
+            </button>
+
+            {showUserMenu && (
+              <>
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 99
+                  }}
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div style={{
+                  position: 'absolute',
+                  top: '48px',
+                  right: 0,
+                  backgroundColor: 'white',
+                  borderRadius: '16px',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.15)',
+                  padding: '8px',
+                  minWidth: '220px',
+                  zIndex: 100,
+                  border: '1px solid #E5E7EB'
+                }}>
+                  <div style={{
+                    padding: '12px',
+                    borderBottom: '1px solid #E5E7EB',
+                    marginBottom: '8px'
+                  }}>
+                    <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E', margin: 0 }}>
+                      {user?.email}
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
+                      Aucun abonnement actif
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/subscription'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <DiamondIcon size={18} color="#2d5a45" />
+                    Mon abonnement
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/create'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <PlusIcon size={18} color="#c84b31" />
+                    Nouveau Post
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/calendar'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <CalendarIcon size={18} color="#1a3a5c" />
+                    Calendrier
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/moodboard'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <PaletteIcon size={18} color="#2d5a45" />
+                    Moodboard
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=posts'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <ImageIcon size={18} color="#8B5CF6" />
+                    Mes Posts
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=tips'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <LightbulbIcon size={18} color="#2d5a45" />
+                    Tips & Conseils
+                  </button>
+
+                  <button
+                    onClick={() => { setShowUserMenu(false); navigate('/dashboard?tab=stats'); }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F3F4F6'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <TrendingUpIcon size={18} color="#8B5CF6" />
+                    Statistiques
+                  </button>
+
+                  <div style={{ height: '1px', backgroundColor: '#E5E7EB', margin: '8px 0' }} />
+
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#DC2626',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#FEE2E2'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                  >
+                    <LogoutIcon size={18} color="#DC2626" />
+                    Déconnexion
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -202,22 +517,8 @@ function Pricing() {
       <main style={{ padding: '24px 16px', maxWidth: '500px', margin: '0 auto' }}>
         {/* Success Badge */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            background: 'linear-gradient(135deg, #10B981, #34D399)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px',
-            fontSize: '36px',
-            boxShadow: '0 8px 30px rgba(16, 185, 129, 0.3)'
-          }}>
-            🎉
-          </div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#1A1A2E', marginBottom: '8px' }}>
-            Votre IA est prête !
+          <h1 style={{ fontSize: '24px', fontWeight: '600', color: '#1A1A2E', marginBottom: '8px' }}>
+            <span style={{ fontFamily: "'Titan One', cursive", color: '#C84B31', fontSize: '28px', letterSpacing: '1px' }}>AiNa</span> est prête !
           </h1>
           <p style={{ color: '#666', fontSize: '14px' }}>
             Choisissez votre formule pour commencer à créer
@@ -232,8 +533,8 @@ function Pricing() {
             style={{
               padding: '20px',
               borderRadius: '16px',
-              border: `3px solid ${selectedPlan === 'monthly' ? '#FF8A65' : '#E5E7EB'}`,
-              backgroundColor: selectedPlan === 'monthly' ? '#FFF5F2' : 'white',
+              border: `3px solid ${selectedPlan === 'monthly' ? '#1a3a5c' : '#E5E7EB'}`,
+              backgroundColor: selectedPlan === 'monthly' ? '#e8f4fd' : 'white',
               cursor: 'pointer',
               transition: 'all 0.2s',
               position: 'relative'
@@ -257,7 +558,7 @@ function Pricing() {
                     {PRICES.monthly.amount}€
                   </span>
                 )}
-                <span style={{ fontSize: '28px', fontWeight: '800', color: '#FF8A65' }}>
+                <span style={{ fontSize: '28px', fontWeight: '800', color: '#1a3a5c' }}>
                   {monthlyPrice.toFixed(0)}€
                 </span>
                 <span style={{ fontSize: '14px', color: '#666' }}>/mois</span>
@@ -268,7 +569,7 @@ function Pricing() {
                 position: 'absolute',
                 top: '-12px',
                 right: '16px',
-                backgroundColor: '#FF8A65',
+                backgroundColor: '#1a3a5c',
                 color: 'white',
                 padding: '4px 12px',
                 borderRadius: '50px',
@@ -286,8 +587,8 @@ function Pricing() {
             style={{
               padding: '20px',
               borderRadius: '16px',
-              border: `3px solid ${selectedPlan === 'yearly' ? '#004E89' : '#E5E7EB'}`,
-              backgroundColor: selectedPlan === 'yearly' ? '#F0F7FF' : 'white',
+              border: `3px solid ${selectedPlan === 'yearly' ? '#1a3a5c' : '#E5E7EB'}`,
+              backgroundColor: selectedPlan === 'yearly' ? '#e8f4fd' : 'white',
               cursor: 'pointer',
               transition: 'all 0.2s',
               position: 'relative'
@@ -324,7 +625,7 @@ function Pricing() {
                     {PRICES.yearly.amount}€
                   </span>
                 )}
-                <span style={{ fontSize: '28px', fontWeight: '800', color: '#004E89' }}>
+                <span style={{ fontSize: '28px', fontWeight: '800', color: '#1a3a5c' }}>
                   {yearlyPrice.toFixed(0)}€
                 </span>
                 <span style={{ fontSize: '14px', color: '#666' }}>/an</span>
@@ -338,7 +639,7 @@ function Pricing() {
                 position: 'absolute',
                 top: '-12px',
                 right: '16px',
-                backgroundColor: '#004E89',
+                backgroundColor: '#1a3a5c',
                 color: 'white',
                 padding: '4px 12px',
                 borderRadius: '50px',
@@ -404,7 +705,7 @@ function Pricing() {
           )}
           {promoError && (
             <p style={{ fontSize: '13px', color: '#DC2626', marginTop: '8px' }}>
-              ❌ {promoError}
+              <CloseIcon size={14} color="#EF4444" /> {promoError}
             </p>
           )}
         </div>
@@ -418,7 +719,7 @@ function Pricing() {
           border: '1px solid #E5E7EB'
         }}>
           <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1A1A2E', marginBottom: '12px' }}>
-            ✨ Inclus dans votre abonnement :
+            <SparklesIcon size={16} color="#c84b31" /> Inclus dans votre abonnement :
           </h4>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {[
@@ -438,7 +739,7 @@ function Pricing() {
                 alignItems: 'center',
                 gap: '8px'
               }}>
-                <span style={{ color: '#10B981' }}>✓</span>
+                <CheckIcon size={14} color="#10B981" />
                 {feature}
               </li>
             ))}
@@ -452,14 +753,14 @@ function Pricing() {
           style={{
             width: '100%',
             padding: '18px',
-            background: processing ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
+            background: processing ? '#E5E7EB' : 'linear-gradient(135deg, #c84b31, #e06b4f)',
             border: 'none',
             borderRadius: '14px',
             color: processing ? '#999' : 'white',
             fontWeight: '700',
             fontSize: '16px',
             cursor: processing ? 'not-allowed' : 'pointer',
-            boxShadow: processing ? 'none' : '0 8px 30px rgba(255, 138, 101, 0.4)',
+            boxShadow: processing ? 'none' : '0 8px 30px rgba(200, 75, 49, 0.4)',
             marginBottom: '16px'
           }}
         >
@@ -476,6 +777,124 @@ function Pricing() {
           </p>
         </div>
       </main>
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={closeConfirmModal}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFF8E7',
+              borderRadius: '20px',
+              padding: '0',
+              width: '100%',
+              maxWidth: '340px',
+              margin: '16px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              border: '3px solid #c84b31',
+              overflow: 'hidden',
+              fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #c84b31, #e05a40)',
+              padding: '18px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px'
+              }}>
+                ⚠️
+              </div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '700',
+                color: 'white',
+                margin: 0
+              }}>
+                {confirmModal.title}
+              </h3>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              <p style={{
+                fontSize: '15px',
+                color: '#1A1A2E',
+                margin: '0 0 24px 0',
+                lineHeight: '1.5',
+                textAlign: 'center'
+              }}>
+                {confirmModal.message}
+              </p>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={closeConfirmModal}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: 'white',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '12px',
+                    color: '#666',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #c84b31, #e05a40)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(200, 75, 49, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

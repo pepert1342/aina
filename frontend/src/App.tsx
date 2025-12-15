@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoAina from '/logo-aina.png';
 
 function App() {
   const navigate = useNavigate();
@@ -13,8 +12,8 @@ function App() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#FAFBFC',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      backgroundColor: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: 'hidden',
       width: '100%',
       maxWidth: '100vw'
@@ -23,7 +22,7 @@ function App() {
       {/* Navigation */}
       <nav style={{
         padding: '12px 16px',
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         backdropFilter: 'blur(20px)',
         boxShadow: '0 2px 20px rgba(0,0,0,0.08)',
         display: 'flex',
@@ -33,19 +32,11 @@ function App() {
         top: 0,
         zIndex: 1000
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <img 
-            src={logoAina} 
-            alt="AiNa" 
-            style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-          />
-          <span style={{ 
-            fontSize: '22px', 
-            fontWeight: '800',
-            fontFamily: "'Poppins', sans-serif",
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{
+            fontSize: '28px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31'
           }}>
             AiNa
           </span>
@@ -57,9 +48,9 @@ function App() {
             style={{
               padding: '10px 16px',
               backgroundColor: 'transparent',
-              border: '2px solid #004E89',
+              border: '2px solid #1a3a5c',
               borderRadius: '10px',
-              color: '#004E89',
+              color: '#1a3a5c',
               fontWeight: '600',
               cursor: 'pointer',
               fontSize: '13px'
@@ -71,14 +62,14 @@ function App() {
             onClick={() => navigate('/login')}
             style={{
               padding: '10px 16px',
-              background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
               border: 'none',
               borderRadius: '10px',
               color: 'white',
               fontWeight: '600',
               cursor: 'pointer',
               fontSize: '13px',
-              boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)'
+              boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)'
             }}
           >
             S'inscrire
@@ -88,8 +79,8 @@ function App() {
 
       {/* Hero Section */}
       <section style={{
-        padding: '40px 16px',
-        background: 'linear-gradient(180deg, #FFF5F2 0%, #FFFFFF 100%)',
+        padding: '40px 16px 24px',
+        background: 'linear-gradient(180deg, #FFF8E7 0%, #FFFFFF 100%)',
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
         transition: 'all 0.6s ease-out'
@@ -99,13 +90,13 @@ function App() {
           <span style={{
             display: 'inline-block',
             padding: '8px 16px',
-            background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+            background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
             borderRadius: '50px',
             color: 'white',
             fontSize: '12px',
             fontWeight: '600'
           }}>
-            🚀 Intelligence Artificielle
+            🤖 Intelligence Artificielle
           </span>
         </div>
 
@@ -119,7 +110,7 @@ function App() {
         }}>
           <span style={{ color: '#1A1A2E' }}>Votre </span>
           <span style={{
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
+            background: 'linear-gradient(135deg, #c84b31, #1a3a5c)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent'
           }}>Community Manager</span>
@@ -136,7 +127,7 @@ function App() {
           marginBottom: '24px',
           padding: '0 10px'
         }}>
-          Créez des posts professionnels pour vos réseaux sociaux en 30 secondes grâce à l'IA.
+          Une IA qui apprend votre style, crée des posts uniques inspirés de votre commerce, et vous aide à ne rien oublier grâce au calendrier intelligent.
         </p>
 
         {/* CTA Button */}
@@ -152,14 +143,14 @@ function App() {
             style={{
               width: '100%',
               padding: '16px',
-              background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
               border: 'none',
               borderRadius: '12px',
               color: 'white',
               fontWeight: '700',
               fontSize: '16px',
               cursor: 'pointer',
-              boxShadow: '0 8px 30px rgba(255, 138, 101, 0.4)'
+              boxShadow: '0 8px 30px rgba(200, 75, 49, 0.4)'
             }}
           >
             ✨ Commencer
@@ -171,14 +162,14 @@ function App() {
           display: 'flex',
           justifyContent: 'center',
           gap: '12px',
-          marginBottom: '32px',
+          marginBottom: '0',
           padding: '0 16px'
         }}>
           <div style={{ textAlign: 'center', flex: 1 }}>
             <div style={{
               width: '36px',
               height: '36px',
-              background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -188,13 +179,13 @@ function App() {
               fontSize: '14px',
               margin: '0 auto 8px'
             }}>1</div>
-            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>Décrivez votre post</p>
+            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>Parlez-nous de votre business</p>
           </div>
           <div style={{ textAlign: 'center', flex: 1 }}>
             <div style={{
               width: '36px',
               height: '36px',
-              background: 'linear-gradient(135deg, #004E89, #0077CC)',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -204,7 +195,7 @@ function App() {
               fontSize: '14px',
               margin: '0 auto 8px'
             }}>2</div>
-            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>L'IA génère</p>
+            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>Décrivez vos besoins</p>
           </div>
           <div style={{ textAlign: 'center', flex: 1 }}>
             <div style={{
@@ -220,95 +211,15 @@ function App() {
               fontSize: '14px',
               margin: '0 auto 8px'
             }}>3</div>
-            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>Publiez !</p>
+            <p style={{ fontSize: '11px', color: '#666', fontWeight: '600' }}>L'IA génère, vous publiez !</p>
           </div>
         </div>
 
-        {/* Réseaux sociaux */}
-        <div style={{
-          textAlign: 'center',
-          padding: '0 20px'
-        }}>
-          <p style={{ fontSize: '13px', color: '#888', marginBottom: '12px' }}>
-            Idéal pour vos réseaux
-          </p>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '8px'
-          }}>
-            {/* Instagram */}
-            <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #833AB4, #E4405F, #FFDC80)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(228, 64, 95, 0.3)'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                <rect x="2" y="2" width="20" height="20" rx="5" stroke="white" strokeWidth="2" fill="none"/>
-                <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="2" fill="none"/>
-                <circle cx="17.5" cy="6.5" r="1.5" fill="white"/>
-              </svg>
-            </div>
-            
-            {/* Facebook */}
-            <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              backgroundColor: '#1877F2',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(24, 119, 242, 0.3)'
-            }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-            </div>
-            
-            {/* TikTok */}
-            <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              backgroundColor: '#000000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)'
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
-              </svg>
-            </div>
-            
-            {/* LinkedIn */}
-            <div style={{
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              backgroundColor: '#0A66C2',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(10, 102, 194, 0.3)'
-            }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
 
       {/* Features Section */}
       <section style={{
-        padding: '32px 16px',
+        padding: '24px 16px',
         backgroundColor: 'white'
       }}>
         <h2 style={{
@@ -332,7 +243,7 @@ function App() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Feature 1 */}
           <div style={{
-            backgroundColor: '#F0F7FF',
+            backgroundColor: '#e8f4fd',
             borderRadius: '14px',
             padding: '18px',
             border: '1px solid #DCE8F5'
@@ -340,7 +251,7 @@ function App() {
             <div style={{
               width: '40px',
               height: '40px',
-              background: 'linear-gradient(135deg, #004E89, #0077CC)',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
               borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
@@ -358,15 +269,15 @@ function App() {
 
           {/* Feature 2 */}
           <div style={{
-            backgroundColor: '#FFF5F2',
+            backgroundColor: '#FFF8E7',
             borderRadius: '14px',
             padding: '18px',
-            border: '1px solid #FFE5DC'
+            border: '1px solid #f5e6dc'
           }}>
             <div style={{
               width: '40px',
               height: '40px',
-              background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
               borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
@@ -413,7 +324,7 @@ function App() {
       {/* CTA Section */}
       <section style={{
         padding: '40px 16px',
-        background: 'linear-gradient(135deg, #004E89, #FF8A65)',
+        background: 'linear-gradient(135deg, #1a3a5c, #c84b31)',
         textAlign: 'center'
       }}>
         <h2 style={{
@@ -440,7 +351,7 @@ function App() {
             backgroundColor: 'white',
             border: 'none',
             borderRadius: '12px',
-            color: '#004E89',
+            color: '#1a3a5c',
             fontWeight: '700',
             fontSize: '16px',
             cursor: 'pointer',
@@ -451,15 +362,96 @@ function App() {
         </button>
       </section>
 
+      {/* Réseaux sociaux */}
+      <section style={{
+        padding: '32px 16px',
+        backgroundColor: '#FFF8E7',
+        textAlign: 'center'
+      }}>
+        <p style={{ fontSize: '14px', color: '#666', marginBottom: '16px', fontWeight: '600' }}>
+          Idéal pour vos réseaux
+        </p>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '12px'
+        }}>
+          {/* Instagram */}
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #833AB4, #E4405F, #FFDC80)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(228, 64, 95, 0.3)'
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <rect x="2" y="2" width="20" height="20" rx="5" stroke="white" strokeWidth="2" fill="none"/>
+              <circle cx="12" cy="12" r="4" stroke="white" strokeWidth="2" fill="none"/>
+              <circle cx="17.5" cy="6.5" r="1.5" fill="white"/>
+            </svg>
+          </div>
+
+          {/* Facebook */}
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '12px',
+            backgroundColor: '#1877F2',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(24, 119, 242, 0.3)'
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+          </div>
+
+          {/* TikTok */}
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '12px',
+            backgroundColor: '#000000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)'
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
+            </svg>
+          </div>
+
+          {/* LinkedIn */}
+          <div style={{
+            width: '52px',
+            height: '52px',
+            borderRadius: '12px',
+            backgroundColor: '#0A66C2',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 15px rgba(10, 102, 194, 0.3)'
+          }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{
         padding: '24px 16px',
         backgroundColor: '#1A1A2E',
         textAlign: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '12px' }}>
-          <img src={logoAina} alt="AiNa" style={{ width: '32px', height: '32px' }} />
-          <span style={{ color: 'white', fontWeight: '700', fontSize: '18px', fontFamily: "'Poppins', sans-serif" }}>AiNa</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+          <span style={{ color: '#FFF8E7', fontSize: '24px', fontFamily: "'Titan One', cursive" }}>AiNa</span>
         </div>
         <p style={{ color: '#888', fontSize: '12px' }}>
           © 2024 AiNa - Votre Community Manager IA

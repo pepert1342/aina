@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import logoAina from '/logo-aina.png';
 
 function Login() {
   const navigate = useNavigate();
@@ -56,8 +55,8 @@ function Login() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #004E89 0%, #0077CC 50%, #FF8A65 100%)',
-      fontFamily: "'Inter', sans-serif",
+      background: 'linear-gradient(135deg, #1a3a5c 0%, #2d5a45 50%, #c84b31 100%)',
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
       display: 'flex',
       flexDirection: 'column',
       overflowX: 'hidden',
@@ -68,19 +67,12 @@ function Login() {
       <header style={{
         padding: '16px',
         display: 'flex',
-        alignItems: 'center',
-        gap: '4px'
+        alignItems: 'center'
       }}>
-        <img 
-          src={logoAina} 
-          alt="AiNa" 
-          style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-        />
-        <span style={{ 
-          fontSize: '22px', 
-          fontWeight: '800',
-          fontFamily: "'Poppins', sans-serif",
-          color: 'white'
+        <span style={{
+          fontSize: '32px',
+          fontFamily: "'Titan One', cursive",
+          color: '#FFF8E7'
         }}>
           AiNa
         </span>
@@ -104,18 +96,11 @@ function Login() {
         }}>
           {/* Logo centré */}
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <img 
-              src={logoAina} 
-              alt="AiNa" 
-              style={{ width: '70px', height: '70px', objectFit: 'contain', marginBottom: '8px' }}
-            />
             <h1 style={{
-              fontSize: '26px',
-              fontWeight: '800',
-              fontFamily: "'Poppins', sans-serif",
-              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              fontSize: '36px',
+              fontFamily: "'Titan One', cursive",
+              color: '#C84B31',
+              marginBottom: '8px'
             }}>AiNa</h1>
             <p style={{ color: '#888', fontSize: '13px' }}>
               Votre Community Manager IA
@@ -141,7 +126,7 @@ function Login() {
                 fontSize: '14px',
                 cursor: 'pointer',
                 backgroundColor: isLogin ? 'white' : 'transparent',
-                color: isLogin ? '#004E89' : '#888',
+                color: isLogin ? '#1a3a5c' : '#888',
                 boxShadow: isLogin ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                 transition: 'all 0.2s'
               }}
@@ -157,7 +142,7 @@ function Login() {
                 fontSize: '14px',
                 cursor: 'pointer',
                 backgroundColor: !isLogin ? 'white' : 'transparent',
-                color: !isLogin ? '#004E89' : '#888',
+                color: !isLogin ? '#1a3a5c' : '#888',
                 boxShadow: !isLogin ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
                 transition: 'all 0.2s'
               }}
@@ -238,14 +223,14 @@ function Login() {
               style={{
                 width: '100%',
                 padding: '14px',
-                background: loading ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                background: loading ? '#E5E7EB' : 'linear-gradient(135deg, #c84b31, #e06b4f)',
                 border: 'none',
                 borderRadius: '10px',
                 color: loading ? '#999' : 'white',
                 fontWeight: '700',
                 fontSize: '15px',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 4px 15px rgba(255, 138, 101, 0.4)'
+                boxShadow: loading ? 'none' : '0 4px 15px rgba(200, 75, 49, 0.4)'
               }}
             >
               {loading ? '⏳ Chargement...' : (isLogin ? 'Se connecter' : "S'inscrire")}

@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { generatePostText, generateImage } from '../gemini';
-import logoAina from '/logo-aina.png';
+import { generatePostText, generateImage, generateImageFromTemplate, modifyImageWithConversation } from '../gemini';
 import ImageEditor from '../components/ImageEditor';
+import {
+  HomeIcon, SparklesIcon, PaletteIcon, TextIcon, CalendarIcon,
+  CameraIcon, ImageIcon, TagIcon, SettingsIcon, DownloadIcon,
+  SaveIcon, CopyIcon, RefreshIcon, CheckIcon, AlertIcon,
+  EditIcon, UploadIcon, CloseIcon, SquareIcon, RectangleVerticalIcon,
+  LoaderIcon, DiamondIcon, LogoutIcon, PlusIcon, TemplateIcon, TrendingUpIcon, LightbulbIcon
+} from '../components/Icons';
+import { NotificationBell } from '../components/Notifications';
 
 type LogoPosition = 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'middle-center' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
 type LogoSize = 'small' | 'medium' | 'large';
@@ -37,12 +44,40 @@ function CreatePost() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
 
   // Paramètres d'événement depuis l'URL
   const eventTitle = searchParams.get('title');
   const eventType = searchParams.get('type');
   const eventDescription = searchParams.get('description');
   const eventDate = searchParams.get('date');
+  const eventId = searchParams.get('eventId'); // ID de l'événement à affilier
+
+  // Paramètres de template depuis l'URL
+  const templateId = searchParams.get('templateId');
+  const templateText = searchParams.get('templateText');
+  const templateImage = searchParams.get('templateImage');
+  const templateDesc = searchParams.get('templateDesc');
+  const templatePlatform = searchParams.get('platform');
+
+  // Mode conversation pour l'image - Interface
+  interface ConversationMessage {
+    role: 'user' | 'assistant';
+    content: string;
+    imageUrl?: string;
+  }
+
+  // Mode template
+  const [isTemplateMode, setIsTemplateMode] = useState(false);
+  const [templateModifications, setTemplateModifications] = useState('');
+  const [templateOriginalImage, setTemplateOriginalImage] = useState<string | null>(null); // Image originale du template
+  const [templateNewImage, setTemplateNewImage] = useState<string | null>(null); // Nouvelle image générée
+  const [generatingTemplateImage, setGeneratingTemplateImage] = useState(false);
+  const [templateEditedText, setTemplateEditedText] = useState(''); // Texte du template éditable
+  const [isEditingTemplateText, setIsEditingTemplateText] = useState(false); // Mode édition texte template
+  const [templateConversation, setTemplateConversation] = useState<ConversationMessage[]>([]); // Conversation pour modifications template
+  const [templateModificationInput, setTemplateModificationInput] = useState(''); // Input pour modifier image template
 
   // Form - Descriptions séparées
   const [imageDescription, setImageDescription] = useState('');
@@ -66,17 +101,22 @@ function CreatePost() {
 
       const typeLabel = typeLabels[eventType || ''] || 'événement';
 
+      // Formatter la date pour l'affichage
+      const formattedDate = eventDate
+        ? new Date(eventDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+        : '';
+
       // Description pour l'image
       imgDesc = `Visuel pour ${eventTitle}`;
-      if (eventDate) {
-        imgDesc += ` (${eventDate})`;
+      if (formattedDate) {
+        imgDesc += ` (${formattedDate})`;
       }
       imgDesc += `. Créer une image attrayante et festive pour promouvoir cet ${typeLabel}.`;
 
       // Description pour la légende
       txtDesc = `Post pour ${eventTitle}`;
-      if (eventDate) {
-        txtDesc += ` le ${eventDate}`;
+      if (formattedDate) {
+        txtDesc += ` le ${formattedDate}`;
       }
       txtDesc += '.';
       if (eventDescription) {
@@ -88,6 +128,45 @@ function CreatePost() {
       setTextDescription(txtDesc);
     }
   }, [eventTitle, eventType, eventDescription, eventDate]);
+
+  // Pré-remplir si on vient d'un template
+  useEffect(() => {
+    if (templateId) {
+      setIsTemplateMode(true);
+
+      // Charger l'image du template (originale)
+      if (templateImage) {
+        setTemplateOriginalImage(templateImage);
+        setGeneratedImage(templateImage); // Aussi pour l'affichage initial
+      }
+
+      // Charger le texte du template
+      if (templateText) {
+        setGeneratedTexts([templateText]);
+        setEditedTexts([templateText]);
+        setSelectedVersion(0);
+        setTemplateEditedText(templateText); // Texte éditable du template
+      }
+
+      // Charger la description
+      if (templateDesc) {
+        setImageDescription(templateDesc);
+        setTextDescription(templateDesc);
+      }
+
+      // Charger la plateforme
+      if (templatePlatform) {
+        setSelectedPlatform(templatePlatform);
+      }
+
+      // Incrémenter le compteur d'utilisation
+      supabase
+        .from('post_templates')
+        .update({ use_count: supabase.rpc('increment_template_use', { template_id: templateId }) })
+        .eq('id', templateId);
+    }
+  }, [templateId, templateText, templateImage, templateDesc, templatePlatform]);
+
   const [selectedPlatform, setSelectedPlatform] = useState('Instagram');
   const [selectedFormat, setSelectedFormat] = useState('carre');
 
@@ -107,10 +186,32 @@ function CreatePost() {
   const [error, setError] = useState('');
   const [imageError, setImageError] = useState('');
 
+  // Mode conversation pour l'image (normal mode)
+  const [imageConversation, setImageConversation] = useState<ConversationMessage[]>([]);
+  const [modificationInput, setModificationInput] = useState('');
+
   // Historique pour IA
   const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Planification
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('12:00');
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+
+  // Affiliation à un événement existant
+  const [affiliating, setAffiliating] = useState(false);
+  const [affiliated, setAffiliated] = useState(false);
+
+  // Templates
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateCategory, setTemplateCategory] = useState('autre');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   // Phase 4: Photo upload + Logo
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
@@ -144,9 +245,19 @@ function CreatePost() {
       .from('businesses')
       .select('*')
       .eq('user_id', session.user.id)
-      .single();
+      .maybeSingle();
 
     if (businessData) setBusiness(businessData);
+
+    // Charger l'abonnement
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (subData) setSubscription(subData);
 
     // Charger l'historique des posts pour l'IA
     const { data: postsData } = await supabase
@@ -232,9 +343,26 @@ function CreatePost() {
       };
 
       // Ajouter le contexte historique dans la description
-      const enrichedDescription = previousDescriptions.length > 0
+      let enrichedDescription = previousDescriptions.length > 0
         ? `${textDescription}\n\n[CONTEXTE - Posts précédents pour cohérence de style: ${previousDescriptions.join(' | ')}]`
         : textDescription;
+
+      // Si mode template avec modifications, ajouter le contexte
+      if (isTemplateMode && templateText && templateModifications.trim()) {
+        enrichedDescription = `IMPORTANT: Tu dois adapter ce texte existant avec les modifications demandées.
+
+TEXTE ORIGINAL DU TEMPLATE:
+"""
+${templateText}
+"""
+
+MODIFICATIONS DEMANDÉES:
+${templateModifications}
+
+Adapte le texte original en appliquant les modifications demandées. Garde le même style et la même structure, mais change les éléments spécifiés (dates, noms, événements, etc.).
+
+${enrichedDescription}`;
+      }
 
       const texts = await generatePostText(
         business.business_name,
@@ -282,9 +410,26 @@ function CreatePost() {
         address: business.address
       };
 
-      const enrichedDescription = previousDescriptions.length > 0
+      let enrichedDescription = previousDescriptions.length > 0
         ? `${textDescription}\n\n[CONTEXTE - Posts précédents pour cohérence de style: ${previousDescriptions.join(' | ')}]`
         : textDescription;
+
+      // Si mode template avec modifications, ajouter le contexte
+      if (isTemplateMode && templateText && templateModifications.trim()) {
+        enrichedDescription = `IMPORTANT: Tu dois adapter ce texte existant avec les modifications demandées.
+
+TEXTE ORIGINAL DU TEMPLATE:
+"""
+${templateText}
+"""
+
+MODIFICATIONS DEMANDÉES:
+${templateModifications}
+
+Adapte le texte original en appliquant les modifications demandées. Garde le même style et la même structure, mais change les éléments spécifiés (dates, noms, événements, etc.).
+
+${enrichedDescription}`;
+      }
 
       const texts = await generatePostText(
         business.business_name,
@@ -322,61 +467,218 @@ function CreatePost() {
     setGeneratedImage(null);
 
     try {
-      // Construire le moodboard avec la photo d'inspiration si applicable
-      const photosForMoodboard = [...(business.photos || [])];
+      // Si photo uploadée en mode "inspiration", utiliser la nouvelle méthode avec image en entrée
       if (uploadedPhoto && photoMode === 'inspiration') {
-        photosForMoodboard.unshift(uploadedPhoto); // Ajouter la photo uploadée en premier
+        // Construire la description enrichie
+        let modifications = imageDescription;
+
+        // Ajouter le style
+        const styleLabels: Record<string, string> = {
+          'photo_realiste': 'Photo réaliste, haute qualité, professionnelle',
+          'illustration': 'Illustration graphique, design moderne',
+          'aquarelle': 'Style aquarelle artistique',
+          'minimaliste': 'Design minimaliste, épuré, moderne',
+          'vintage': 'Style vintage, rétro',
+          'flat_design': 'Flat design, couleurs vives, vectoriel'
+        };
+        modifications += `\n\nStyle: ${styleLabels[imageStyle] || 'Photo réaliste'}`;
+        modifications += `\nFormat: ${selectedFormat === 'carre' ? 'carré 1:1' : 'story vertical 9:16'}`;
+
+        if (imageAmbiance) {
+          modifications += `\nAmbiance: ${imageAmbiance}`;
+        }
+        if (imageColors) {
+          modifications += `\nCouleurs: ${imageColors}`;
+        }
+
+        const imageData = await generateImageFromTemplate(
+          uploadedPhoto,
+          modifications,
+          business.business_name,
+          business.business_type,
+          business.tone || 'Familial'
+        );
+        setGeneratedImage(imageData);
+      } else {
+        // Mode normal sans photo d'inspiration
+        const moodboard = {
+          keywords: business.keywords,
+          logo_url: business.logo_url,
+          photos: business.photos || [],
+          address: business.address
+        };
+
+        // Construire la description enrichie avec les contrôles avancés
+        let enrichedDescription = `Format: ${selectedFormat === 'carre' ? 'carré 1:1' : 'story vertical 9:16'}`;
+
+        // Style d'image
+        const styleLabels: Record<string, string> = {
+          'photo_realiste': 'Photo réaliste, haute qualité, professionnelle',
+          'illustration': 'Illustration graphique, design moderne',
+          'aquarelle': 'Style aquarelle artistique',
+          'minimaliste': 'Design minimaliste, épuré, moderne',
+          'vintage': 'Style vintage, rétro',
+          'flat_design': 'Flat design, couleurs vives, vectoriel'
+        };
+        enrichedDescription += `\n\nSTYLE: ${styleLabels[imageStyle] || 'Photo réaliste'}`;
+
+        // Ambiance
+        if (imageAmbiance) {
+          enrichedDescription += `\nAMBIANCE: ${imageAmbiance}`;
+        }
+
+        // Couleurs
+        if (imageColors) {
+          enrichedDescription += `\nCOULEURS DOMINANTES: ${imageColors}`;
+        }
+
+        const imageData = await generateImage(
+          business.business_name,
+          business.business_type,
+          imageDescription,
+          enrichedDescription,
+          business.tone || 'Familial',
+          moodboard
+        );
+        setGeneratedImage(imageData);
+        // Ajouter à l'historique de conversation
+        setImageConversation([
+          { role: 'user', content: imageDescription },
+          { role: 'assistant', content: 'Image générée', imageUrl: imageData }
+        ]);
       }
-
-      const moodboard = {
-        keywords: business.keywords,
-        logo_url: business.logo_url,
-        photos: photosForMoodboard,
-        address: business.address
-      };
-
-      // Construire la description enrichie avec les contrôles avancés
-      let enrichedDescription = `Format: ${selectedFormat === 'carre' ? 'carré 1:1' : 'story vertical 9:16'}`;
-
-      // Style d'image
-      const styleLabels: Record<string, string> = {
-        'photo_realiste': 'Photo réaliste, haute qualité, professionnelle',
-        'illustration': 'Illustration graphique, design moderne',
-        'aquarelle': 'Style aquarelle artistique',
-        'minimaliste': 'Design minimaliste, épuré, moderne',
-        'vintage': 'Style vintage, rétro',
-        'flat_design': 'Flat design, couleurs vives, vectoriel'
-      };
-      enrichedDescription += `\n\nSTYLE: ${styleLabels[imageStyle] || 'Photo réaliste'}`;
-
-      // Ambiance
-      if (imageAmbiance) {
-        enrichedDescription += `\nAMBIANCE: ${imageAmbiance}`;
-      }
-
-      // Couleurs
-      if (imageColors) {
-        enrichedDescription += `\nCOULEURS DOMINANTES: ${imageColors}`;
-      }
-
-      if (uploadedPhoto && photoMode === 'inspiration') {
-        enrichedDescription += `\n\nIMPORTANT: S'inspirer fortement de l'ambiance, des couleurs et du style de la photo fournie par l'utilisateur pour créer une image cohérente.`;
-      }
-
-      const imageData = await generateImage(
-        business.business_name,
-        business.business_type,
-        imageDescription,
-        enrichedDescription,
-        business.tone || 'Familial',
-        moodboard
-      );
-      setGeneratedImage(imageData);
     } catch (error: any) {
       setImageError('Erreur: ' + error.message);
     } finally {
       setGeneratingImage(false);
     }
+  };
+
+  // Fonction pour modifier l'image existante avec une demande conversationnelle
+  const handleModifyImage = async () => {
+    if (!business || !modificationInput.trim() || !generatedImage) {
+      setImageError('Veuillez décrire la modification souhaitée');
+      return;
+    }
+
+    setGeneratingImage(true);
+    setImageError('');
+
+    try {
+      const imageData = await modifyImageWithConversation(
+        generatedImage,
+        modificationInput,
+        imageConversation.filter(msg => msg.role === 'user').map(msg => ({ role: msg.role, content: msg.content })),
+        business.business_name,
+        business.business_type,
+        business.tone || 'Familial'
+      );
+
+      // Ajouter à l'historique de conversation
+      setImageConversation(prev => [
+        ...prev,
+        { role: 'user', content: modificationInput },
+        { role: 'assistant', content: 'Modification appliquée', imageUrl: imageData }
+      ]);
+
+      setGeneratedImage(imageData);
+      setModificationInput(''); // Réinitialiser le champ de saisie
+    } catch (error: any) {
+      setImageError('Erreur: ' + error.message);
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
+  // Fonction pour remettre à zéro et recommencer
+  const handleResetImage = () => {
+    setGeneratedImage(null);
+    setImageConversation([]);
+    setModificationInput('');
+    setImageError('');
+  };
+
+  // Fonction pour générer une nouvelle image basée sur le template + modifications
+  const handleGenerateTemplateImage = async () => {
+    if (!business || !templateModifications.trim() || !templateOriginalImage) {
+      setImageError('Veuillez décrire les modifications souhaitées');
+      return;
+    }
+
+    setGeneratingTemplateImage(true);
+    setImageError('');
+
+    try {
+      // Utiliser la nouvelle fonction qui envoie l'image du template directement à l'IA
+      const imageData = await generateImageFromTemplate(
+        templateOriginalImage,
+        templateModifications,
+        business.business_name,
+        business.business_type,
+        business.tone || 'Familial'
+      );
+
+      setTemplateNewImage(imageData);
+      setGeneratedImage(imageData); // Mettre à jour l'image affichée
+      // Initialiser la conversation avec la première modification
+      setTemplateConversation([
+        { role: 'user', content: templateModifications },
+        { role: 'assistant', content: 'Image générée avec les modifications', imageUrl: imageData }
+      ]);
+    } catch (error: any) {
+      setImageError('Erreur: ' + error.message);
+    } finally {
+      setGeneratingTemplateImage(false);
+    }
+  };
+
+  // Fonction pour modifier l'image du template de manière conversationnelle
+  const handleModifyTemplateImage = async () => {
+    if (!business || !templateModificationInput.trim() || !templateNewImage) {
+      setImageError('Veuillez décrire la modification souhaitée');
+      return;
+    }
+
+    setGeneratingTemplateImage(true);
+    setImageError('');
+
+    try {
+      const imageData = await modifyImageWithConversation(
+        templateNewImage,
+        templateModificationInput,
+        templateConversation.filter(msg => msg.role === 'user').map(msg => ({ role: msg.role, content: msg.content })),
+        business.business_name,
+        business.business_type,
+        business.tone || 'Familial'
+      );
+
+      // Ajouter à l'historique de conversation
+      setTemplateConversation(prev => [
+        ...prev,
+        { role: 'user', content: templateModificationInput },
+        { role: 'assistant', content: 'Modification appliquée', imageUrl: imageData }
+      ]);
+
+      setTemplateNewImage(imageData);
+      setGeneratedImage(imageData);
+      setTemplateModificationInput(''); // Réinitialiser le champ
+    } catch (error: any) {
+      setImageError('Erreur: ' + error.message);
+    } finally {
+      setGeneratingTemplateImage(false);
+    }
+  };
+
+  // Fonction pour remettre à zéro le template et recommencer
+  const handleResetTemplate = () => {
+    setTemplateNewImage(null);
+    if (templateImage) {
+      setGeneratedImage(templateImage); // Revenir à l'image originale
+    }
+    setTemplateConversation([]);
+    setTemplateModificationInput('');
+    setTemplateModifications('');
+    setImageError('');
   };
 
   const handleGenerateAll = async () => {
@@ -506,13 +808,20 @@ function CreatePost() {
 
     setSaving(true);
     try {
+      // Récupérer la légende : en mode template utiliser templateEditedText, sinon version sélectionnée/éditée
+      const textToSave = isTemplateMode
+        ? (templateEditedText || templateText || null)
+        : (selectedVersion !== null
+          ? editedTexts[selectedVersion]
+          : (editedTexts[0] || generatedTexts[0] || null));
+
       const { error } = await supabase
         .from('posts_history')
         .insert([{
           user_id: user.id,
           business_id: business.id,
           image_url: generatedImage,
-          text_content: selectedVersion !== null ? editedTexts[selectedVersion] : null,
+          text_content: textToSave,
           description: imageDescription || textDescription,
           platform: selectedPlatform,
           tone: business.tone,
@@ -526,7 +835,7 @@ function CreatePost() {
       setSavedPosts(prev => [{
         id: Date.now().toString(),
         image_url: generatedImage,
-        text_content: selectedVersion !== null ? generatedTexts[selectedVersion] : undefined,
+        text_content: textToSave || undefined,
         description: imageDescription || textDescription,
         platform: selectedPlatform,
         style: business.preferred_style
@@ -534,11 +843,180 @@ function CreatePost() {
 
       setTimeout(() => setSaved(false), 3000);
     } catch (error: any) {
-      alert('Erreur: ' + error.message);
+      console.error('Erreur sauvegarde:', error);
+      alert('Erreur sauvegarde: ' + (error.message || JSON.stringify(error)));
     } finally {
       setSaving(false);
     }
   };
+
+  // Planifier le post dans le calendrier
+  const handleSchedulePost = async () => {
+    if (!generatedImage || !user || !business || !scheduleDate) return;
+
+    setScheduling(true);
+    try {
+      // Combiner date et heure
+      const scheduledDateTime = `${scheduleDate}T${scheduleTime}:00`;
+
+      // Récupérer la légende : en mode template utiliser templateEditedText, sinon version sélectionnée/éditée
+      const textToSave = isTemplateMode
+        ? (templateEditedText || templateText || null)
+        : (selectedVersion !== null
+          ? editedTexts[selectedVersion]
+          : (editedTexts[0] || generatedTexts[0] || null));
+
+      // Sauvegarder d'abord le post
+      const { data: postData, error: postError } = await supabase
+        .from('posts_history')
+        .insert([{
+          user_id: user.id,
+          business_id: business.id,
+          image_url: generatedImage,
+          text_content: textToSave,
+          description: imageDescription || textDescription,
+          platform: selectedPlatform,
+          tone: business.tone,
+          style: business.preferred_style,
+          scheduled_date: scheduledDateTime,
+          status: 'scheduled'
+        }])
+        .select()
+        .single();
+
+      if (postError) throw postError;
+
+      // Créer un événement dans le calendrier
+      const { error: eventError } = await supabase
+        .from('events')
+        .insert([{
+          user_id: user.id,
+          title: `Post planifié: ${(imageDescription || textDescription || 'Post').substring(0, 30)}...`,
+          event_date: scheduledDateTime,
+          event_type: 'Post planifié',
+          description: `Post pour ${selectedPlatform || 'réseaux sociaux'}. ${textToSave ? textToSave.substring(0, 100) + '...' : ''}`,
+          post_id: postData?.id
+        }]);
+
+      if (eventError) throw eventError;
+
+      setScheduled(true);
+      setShowScheduleModal(false);
+      setScheduleDate('');
+      setScheduleTime('12:00');
+
+      setTimeout(() => setScheduled(false), 3000);
+    } catch (error: any) {
+      alert('Erreur lors de la planification: ' + error.message);
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  // Affilier le post à un événement existant
+  const handleAffiliateToEvent = async () => {
+    if (!generatedImage || !user || !business || !eventId || !eventDate) return;
+
+    setAffiliating(true);
+    try {
+      // Récupérer la légende : en mode template utiliser templateEditedText, sinon version sélectionnée/éditée
+      const textToSave = isTemplateMode
+        ? (templateEditedText || templateText || null)
+        : (selectedVersion !== null
+          ? editedTexts[selectedVersion]
+          : (editedTexts[0] || generatedTexts[0] || null));
+
+      // Date de l'événement pour la planification
+      const scheduledDateTime = `${eventDate}T12:00:00`;
+
+      // 1. Sauvegarder le post avec la date de l'événement
+      const { data: postData, error: postError } = await supabase
+        .from('posts_history')
+        .insert([{
+          user_id: user.id,
+          business_id: business.id,
+          image_url: generatedImage,
+          text_content: textToSave,
+          description: imageDescription || textDescription,
+          platform: selectedPlatform,
+          tone: business.tone,
+          style: business.preferred_style,
+          scheduled_date: scheduledDateTime,
+          status: 'scheduled'
+        }])
+        .select()
+        .single();
+
+      if (postError) throw postError;
+
+      // 2. Mettre à jour l'événement avec le post_id
+      const { error: eventError } = await supabase
+        .from('events')
+        .update({ post_id: postData.id })
+        .eq('id', eventId);
+
+      if (eventError) throw eventError;
+
+      setAffiliated(true);
+      // Ne pas reset affiliated pour garder l'état visible
+    } catch (error: any) {
+      console.error('Erreur affiliation:', error);
+      alert('Erreur lors de l\'affiliation: ' + error.message);
+    } finally {
+      setAffiliating(false);
+    }
+  };
+
+  // Sauvegarder comme template
+  const handleSaveAsTemplate = async () => {
+    if (!user || !business || !templateName.trim()) return;
+
+    setSavingTemplate(true);
+    try {
+      // Récupérer la légende : en mode template utiliser templateEditedText, sinon version sélectionnée/éditée
+      const textToSave = isTemplateMode
+        ? (templateEditedText || templateText || null)
+        : (selectedVersion !== null
+          ? editedTexts[selectedVersion]
+          : (editedTexts[0] || generatedTexts[0] || null));
+
+      const { error } = await supabase
+        .from('post_templates')
+        .insert([{
+          user_id: user.id,
+          business_id: business.id,
+          name: templateName.trim(),
+          category: templateCategory,
+          image_url: generatedImage,
+          text_content: textToSave,
+          description: imageDescription || textDescription,
+          platform: selectedPlatform,
+          tone: business.tone,
+          style: business.preferred_style,
+          image_style: imageStyle
+        }]);
+
+      if (error) throw error;
+
+      setTemplateSaved(true);
+      setShowTemplateModal(false);
+      setTemplateName('');
+      setTimeout(() => setTemplateSaved(false), 3000);
+    } catch (error: any) {
+      console.error('Erreur sauvegarde template:', error);
+      alert('Erreur: ' + error.message);
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
+  const templateCategories = [
+    { value: 'promotion', label: 'Promotion', icon: '🏷️' },
+    { value: 'nouveau_produit', label: 'Nouveau produit', icon: '✨' },
+    { value: 'evenement', label: 'Événement', icon: '🎉' },
+    { value: 'quotidien', label: 'Quotidien', icon: '📅' },
+    { value: 'autre', label: 'Autre', icon: '📌' }
+  ];
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -552,27 +1030,35 @@ function CreatePost() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+        background: '#FFF8E7',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+        <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: '60px',
-            height: '60px',
-            background: 'linear-gradient(135deg, #004E89, #FF6B35)',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: '800',
-            fontSize: '24px',
-            animation: 'pulse 1.5s ease-in-out infinite'
+            fontSize: '48px',
+            marginBottom: '16px',
+            animation: 'spin 1.5s ease-in-out infinite'
           }}>
-            A
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+            </svg>
           </div>
-          <p style={{ color: '#666', fontWeight: '500' }}>Chargement...</p>
+          <span style={{
+            fontSize: '32px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31',
+            display: 'block',
+            marginBottom: '8px'
+          }}>AiNa</span>
+          <p style={{ color: '#666' }}>Chargement...</p>
         </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(180deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -580,12 +1066,14 @@ function CreatePost() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #F0F7FF 0%, #FFFFFF 50%, #F5F0FF 100%)',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+      background: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+      overflowX: 'hidden',
+      maxWidth: '100vw'
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         borderBottom: '1px solid #DCE8F5',
         position: 'sticky',
         top: 0,
@@ -602,28 +1090,14 @@ function CreatePost() {
           gap: '12px'
         }}>
           {/* Logo */}
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+          <div
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
             onClick={() => navigate('/dashboard')}
           >
-            <img 
-              src={logoAina} 
-              alt="AiNa" 
-              style={{
-                width: '52px',
-                height: '52px',
-                objectFit: 'contain'
-              }}
-            />
-            <span style={{ 
-              fontSize: '24px', 
-              fontWeight: '800',
-              fontFamily: "'Poppins', sans-serif",
-              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              marginLeft: '-4px'
+            <span style={{
+              fontSize: '28px',
+              fontFamily: "'Titan One', cursive",
+              color: '#C84B31'
             }}>
               AiNa
             </span>
@@ -631,40 +1105,283 @@ function CreatePost() {
 
           {/* Boutons à droite */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button 
-              onClick={() => navigate('/create')}
-              className="btn-create"
+            {user && <NotificationBell userId={user.id} />}
+            <button
+              onClick={() => navigate('/dashboard')}
               style={{
                 padding: '10px 16px',
-                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                 border: 'none',
                 borderRadius: '10px',
                 color: 'white',
                 fontWeight: '600',
                 cursor: 'pointer',
                 fontSize: '13px',
-                boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)',
-                whiteSpace: 'nowrap'
+                boxShadow: '0 4px 15px rgba(26, 58, 92, 0.3)',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              ✨ Créer
+              <HomeIcon size={14} color="white" />
+              Accueil
             </button>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '10px 14px',
-                backgroundColor: 'transparent',
-                border: '2px solid #E5E7EB',
-                borderRadius: '10px',
-                color: '#666',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '13px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Déconnexion
-            </button>
+
+            {/* User Menu */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  background: '#C84B31',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFF8E7',
+                  fontSize: '15px',
+                  fontFamily: "'Titan One', cursive",
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(200, 75, 49, 0.3)'
+                }}
+              >
+                {user?.email?.charAt(0).toUpperCase()}
+              </button>
+
+              {/* Menu déroulant */}
+              {showUserMenu && (
+                <>
+                  {/* Overlay pour fermer le menu */}
+                  <div
+                    onClick={() => setShowUserMenu(false)}
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 99
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '48px',
+                    right: 0,
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    border: '1px solid #E5E7EB',
+                    minWidth: '200px',
+                    zIndex: 100,
+                    overflow: 'hidden'
+                  }}>
+                    {/* Email utilisateur */}
+                    <div style={{
+                      padding: '14px 16px',
+                      borderBottom: '1px solid #E5E7EB',
+                      backgroundColor: '#F9FAFB'
+                    }}>
+                      <p style={{ fontSize: '12px', color: '#888', margin: '0 0 4px 0' }}>Connecté en tant que</p>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0, wordBreak: 'break-all' }}>
+                        {user?.email}
+                      </p>
+                    </div>
+
+                    {/* Statut abonnement */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/subscription');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <DiamondIcon size={18} color="#2d5a45" />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0 }}>
+                          Mon abonnement
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#10B981', margin: '2px 0 0', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {subscription?.plan === 'yearly' ? 'Pro Annuel' : 'Pro Mensuel'} <CheckIcon size={12} color="#10B981" />
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Nouveau Post (page actuelle) */}
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        backgroundColor: '#FFF5F2',
+                        borderBottom: '1px solid #E5E7EB'
+                      }}
+                    >
+                      <PlusIcon size={18} color="#c84b31" />
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#c84b31', margin: 0 }}>
+                        Nouveau Post
+                      </p>
+                    </div>
+
+                    {/* Calendrier */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/calendar');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <CalendarIcon size={18} color="#1a3a5c" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Calendrier
+                      </p>
+                    </div>
+
+                    {/* Moodboard */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/moodboard');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <PaletteIcon size={18} color="#2d5a45" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Moodboard
+                      </p>
+                    </div>
+
+                    {/* Mes Posts */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=posts');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <ImageIcon size={18} color="#8B5CF6" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Mes Posts
+                      </p>
+                    </div>
+
+                    {/* Tips & Conseils */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=tips');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <SparklesIcon size={18} color="#2d5a45" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Tips & Conseils
+                      </p>
+                    </div>
+
+                    {/* Statistiques */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=stats');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <TrendingUpIcon size={18} color="#8B5CF6" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Statistiques
+                      </p>
+                    </div>
+
+                    {/* Déconnexion */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        handleLogout();
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <LogoutIcon size={18} color="#DC2626" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#DC2626', margin: 0 }}>
+                        Déconnexion
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -677,14 +1394,640 @@ function CreatePost() {
         transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
         transition: 'all 0.6s ease-out'
       }}>
-        
+
+        {/* ========== MODE TEMPLATE - Interface dédiée ========== */}
+        {isTemplateMode ? (
+          <>
+            {/* Header Template */}
+            <div style={{
+              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              borderRadius: '16px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 10px 40px rgba(139, 92, 246, 0.3)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <TemplateIcon size={24} color="white" />
+                </div>
+                <div>
+                  <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
+                    Réutiliser un template
+                  </h1>
+                  <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '2px' }}>
+                    Adaptez votre template avec les modifications souhaitées
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Aperçu du template original */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              border: '1px solid #DCE8F5'
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1A1A2E', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ImageIcon size={18} color="#8B5CF6" />
+                Template original
+              </h3>
+
+              <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
+                {/* Image du template */}
+                {templateOriginalImage && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img
+                      src={templateOriginalImage}
+                      alt="Template original"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '300px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Texte du template */}
+                {templateText && (
+                  <div style={{
+                    backgroundColor: '#F8FAFC',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid #E5E7EB'
+                  }}>
+                    <p style={{ fontSize: '13px', color: '#666', marginBottom: '8px', fontWeight: '600' }}>
+                      📝 Légende (sera conservée) :
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#1A1A2E', lineHeight: '1.6', whiteSpace: 'pre-wrap', margin: 0 }}>
+                      {templateText}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modifications à appliquer */}
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '20px',
+              marginBottom: '20px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+              border: '2px solid #A78BFA'
+            }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: '700',
+                color: '#6B21A8',
+                fontSize: '16px',
+                marginBottom: '12px'
+              }}>
+                <EditIcon size={18} color="#8B5CF6" />
+                Modifications à appliquer
+              </label>
+              <textarea
+                value={templateModifications}
+                onChange={(e) => setTemplateModifications(e.target.value)}
+                placeholder="Ex: Changer la date affichée pour 'Samedi 20 Décembre', remplacer le nom du plat par 'Osso Bucco', modifier le prix en '18€'..."
+                rows={4}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: '2px solid #E9D5FF',
+                  borderRadius: '12px',
+                  fontSize: '15px',
+                  resize: 'none',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  fontFamily: 'inherit',
+                  lineHeight: '1.6'
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#8B5CF6';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(139, 92, 246, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#E9D5FF';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>
+                💡 Décrivez les modifications visuelles : textes, dates, noms, prix... L'IA recréera l'image avec ces changements.
+              </p>
+
+              {/* Bouton Générer la nouvelle image */}
+              <button
+                onClick={handleGenerateTemplateImage}
+                disabled={generatingTemplateImage || !templateModifications.trim()}
+                style={{
+                  width: '100%',
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: (generatingTemplateImage || !templateModifications.trim()) ? '#E5E7EB' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: (generatingTemplateImage || !templateModifications.trim()) ? '#999' : 'white',
+                  fontWeight: '700',
+                  cursor: (generatingTemplateImage || !templateModifications.trim()) ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  boxShadow: (generatingTemplateImage || !templateModifications.trim()) ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
+                  opacity: !templateModifications.trim() ? 0.6 : 1
+                }}
+              >
+                {generatingTemplateImage ? (
+                  <><LoaderIcon size={18} color="#999" /> Génération de l'image...</>
+                ) : (
+                  <><SparklesIcon size={18} color="white" /> Générer la nouvelle image</>
+                )}
+              </button>
+
+              {/* Erreur */}
+              {imageError && (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  backgroundColor: '#FEE2E2',
+                  borderRadius: '8px',
+                  color: '#DC2626',
+                  fontSize: '13px'
+                }}>
+                  {imageError}
+                </div>
+              )}
+            </div>
+
+            {/* Résultat - Nouvelle image générée */}
+            {templateNewImage && (
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: '20px',
+                padding: '20px',
+                marginBottom: '20px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+                border: '2px solid #10B981'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#059669', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <CheckIcon size={18} color="#10B981" />
+                    Nouvelle image générée
+                  </h3>
+                  {/* Bouton Recommencer */}
+                  <button
+                    onClick={handleResetTemplate}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#FEE2E2',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#DC2626',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <RefreshIcon size={12} color="#DC2626" />
+                    Recommencer
+                  </button>
+                </div>
+
+                {/* Image générée */}
+                <div style={{
+                  backgroundColor: '#F0FDF4',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+                    <img
+                      src={templateNewImage}
+                      alt="Nouvelle image"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '350px',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Système de conversation pour modifier l'image */}
+                <div style={{
+                  backgroundColor: '#F3E8FF',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px'
+                }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#6B21A8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <SparklesIcon size={14} color="#8B5CF6" />
+                    Modifier l'image avec l'IA
+                  </p>
+
+                  {/* Historique de conversation */}
+                  {templateConversation.length > 0 && (
+                    <div style={{
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      marginBottom: '12px',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      border: '1px solid #E9D5FF'
+                    }}>
+                      {templateConversation.filter(msg => msg.role === 'user').map((msg, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            padding: '6px 10px',
+                            marginBottom: index < templateConversation.filter(m => m.role === 'user').length - 1 ? '6px' : 0,
+                            backgroundColor: '#EEF2FF',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            color: '#4F46E5'
+                          }}
+                        >
+                          {msg.content}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Input de modification */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={templateModificationInput}
+                      onChange={(e) => setTemplateModificationInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && !generatingTemplateImage && handleModifyTemplateImage()}
+                      placeholder="Ex: Plus de lumière, changer les couleurs, ajouter du texte..."
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '2px solid #E9D5FF',
+                        fontSize: '13px',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={handleModifyTemplateImage}
+                      disabled={generatingTemplateImage || !templateModificationInput.trim()}
+                      style={{
+                        padding: '12px 16px',
+                        background: generatingTemplateImage || !templateModificationInput.trim()
+                          ? '#E5E7EB'
+                          : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: generatingTemplateImage || !templateModificationInput.trim() ? '#999' : 'white',
+                        fontWeight: '600',
+                        cursor: generatingTemplateImage || !templateModificationInput.trim() ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px'
+                      }}
+                    >
+                      {generatingTemplateImage ? <LoaderIcon size={14} color="#999" /> : <SparklesIcon size={14} color="white" />}
+                      Modifier
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#888', marginTop: '8px', margin: '8px 0 0' }}>
+                    Demandez des modifications et l'IA ajustera l'image
+                  </p>
+                </div>
+
+                {/* Section Légende éditable */}
+                <div style={{
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  marginBottom: '16px',
+                  border: '1px solid #E5E7EB'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📝 Légende
+                    </p>
+                    <button
+                      onClick={() => setIsEditingTemplateText(!isEditingTemplateText)}
+                      style={{
+                        padding: '6px 12px',
+                        background: isEditingTemplateText ? '#10B981' : '#EEF2FF',
+                        border: 'none',
+                        borderRadius: '8px',
+                        color: isEditingTemplateText ? 'white' : '#4F46E5',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      {isEditingTemplateText ? (
+                        <><CheckIcon size={12} color="white" /> Terminé</>
+                      ) : (
+                        <><EditIcon size={12} color="#4F46E5" /> Modifier</>
+                      )}
+                    </button>
+                  </div>
+                  {isEditingTemplateText ? (
+                    <textarea
+                      value={templateEditedText}
+                      onChange={(e) => setTemplateEditedText(e.target.value)}
+                      rows={6}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '2px solid #8B5CF6',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        resize: 'vertical',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  ) : (
+                    <p style={{ fontSize: '14px', color: '#1A1A2E', lineHeight: '1.6', whiteSpace: 'pre-wrap', margin: 0 }}>
+                      {templateEditedText || templateText || 'Aucune légende'}
+                    </p>
+                  )}
+                  {/* Bouton copier */}
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(templateEditedText || templateText || '');
+                      alert('✅ Texte copié !');
+                    }}
+                    style={{
+                      marginTop: '12px',
+                      padding: '8px 14px',
+                      background: 'white',
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      color: '#666',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <CopyIcon size={12} color="#666" />
+                    Copier la légende
+                  </button>
+                </div>
+
+                {/* Boutons d'action principaux - Ligne 1 */}
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  {/* Télécharger */}
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `template-${Date.now()}.png`;
+                      link.href = templateNewImage;
+                      link.click();
+                    }}
+                    style={{
+                      flex: 1,
+                      minWidth: '100px',
+                      padding: '12px',
+                      background: 'white',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '10px',
+                      color: '#666',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <DownloadIcon size={14} color="#666" />
+                    Télécharger
+                  </button>
+
+                  {/* Sauvegarder dans Mes Posts */}
+                  <button
+                    onClick={handleSavePost}
+                    disabled={saving || saved}
+                    style={{
+                      flex: 1,
+                      minWidth: '100px',
+                      padding: '12px',
+                      background: saved ? '#10B981' : 'linear-gradient(135deg, #10B981, #34D399)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: saved ? 'default' : 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: saved ? 'none' : '0 4px 15px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    {saved ? (
+                      <><CheckIcon size={14} color="white" /> Sauvegardé !</>
+                    ) : saving ? (
+                      <><LoaderIcon size={14} color="white" /> ...</>
+                    ) : (
+                      <><SaveIcon size={14} color="white" /> Mes Posts</>
+                    )}
+                  </button>
+                </div>
+
+                {/* Boutons d'action - Ligne 2 */}
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  {/* Sauvegarder comme nouveau template */}
+                  <button
+                    onClick={() => setShowTemplateModal(true)}
+                    style={{
+                      flex: 1,
+                      minWidth: '100px',
+                      padding: '12px',
+                      background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'
+                    }}
+                  >
+                    <TemplateIcon size={14} color="white" /> Nouveau Template
+                  </button>
+
+                  {/* Planifier OU Affilier à l'événement */}
+                  {eventId ? (
+                    // Si on vient d'un événement : bouton Affilier à l'événement
+                    <button
+                      onClick={handleAffiliateToEvent}
+                      disabled={affiliating || affiliated}
+                      style={{
+                        flex: 1,
+                        minWidth: '100px',
+                        padding: '12px',
+                        background: affiliated
+                          ? 'linear-gradient(135deg, #10B981, #34D399)'
+                          : 'linear-gradient(135deg, #c84b31, #e05a40)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: 'white',
+                        fontWeight: '600',
+                        cursor: affiliating || affiliated ? 'default' : 'pointer',
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: affiliated ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(200, 75, 49, 0.3)'
+                      }}
+                    >
+                      {affiliating ? (
+                        <><LoaderIcon size={14} color="white" /> Affiliation...</>
+                      ) : affiliated ? (
+                        <><CheckIcon size={14} color="white" /> Affilié !</>
+                      ) : (
+                        <><CalendarIcon size={14} color="white" /> Affilier</>
+                      )}
+                    </button>
+                  ) : (
+                    // Sinon : bouton Planifier classique
+                    <button
+                      onClick={() => setShowScheduleModal(true)}
+                      disabled={scheduled}
+                      style={{
+                        flex: 1,
+                        minWidth: '100px',
+                        padding: '12px',
+                        background: scheduled ? '#1a3a5c' : 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: 'white',
+                        fontWeight: '600',
+                        cursor: scheduled ? 'default' : 'pointer',
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: scheduled ? 'none' : '0 4px 15px rgba(26, 58, 92, 0.3)'
+                      }}
+                    >
+                      {scheduled ? (
+                        <><CheckIcon size={14} color="white" /> Planifié !</>
+                      ) : (
+                        <><CalendarIcon size={14} color="white" /> Planifier</>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Info événement affilié */}
+                {eventId && (
+                  <div style={{
+                    padding: '12px 16px',
+                    background: affiliated ? 'linear-gradient(135deg, #D1FAE5, #A7F3D0)' : 'linear-gradient(135deg, #FEF3C7, #FDE68A)',
+                    borderRadius: '12px',
+                    marginBottom: '10px',
+                    border: affiliated ? '2px solid #10B981' : '2px solid #F59E0B'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '24px' }}>{affiliated ? '✅' : '📅'}</span>
+                      <div>
+                        <p style={{
+                          fontSize: '14px',
+                          fontWeight: '700',
+                          color: affiliated ? '#065F46' : '#92400E',
+                          margin: 0
+                        }}>
+                          {affiliated ? 'Post affilié !' : 'Événement à publier'}
+                        </p>
+                        <p style={{
+                          fontSize: '13px',
+                          color: affiliated ? '#047857' : '#B45309',
+                          margin: '2px 0 0'
+                        }}>
+                          {eventTitle} • {eventDate ? new Date(eventDate).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          }) : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bouton retour */}
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'transparent',
+                border: '2px solid #E5E7EB',
+                borderRadius: '12px',
+                color: '#666',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              ← Retour au dashboard
+            </button>
+          </>
+        ) : (
+          <>
+        {/* ========== MODE NORMAL - Interface Create Post ========== */}
         {/* Header Banner - Dégradé INVERSÉ (Bleu → Orange) */}
         <div className="banner" style={{
-          background: 'linear-gradient(135deg, #004E89, #FF8A65)',
+          background: 'linear-gradient(135deg, #1a3a5c, #c84b31)',
           borderRadius: '16px',
           padding: '20px',
           marginBottom: '20px',
-          boxShadow: '0 10px 40px rgba(0, 78, 137, 0.3)'
+          boxShadow: '0 10px 40px rgba(26, 58, 92, 0.3)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
             <div style={{
@@ -695,10 +2038,9 @@ function CreatePost() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '22px',
               flexShrink: 0
             }}>
-              ✨
+              <SparklesIcon size={22} color="white" />
             </div>
             <div>
               <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
@@ -730,7 +2072,7 @@ function CreatePost() {
               borderRadius: '12px',
               border: 'none',
               background: activeTab === 'image'
-                ? 'linear-gradient(135deg, #FF8A65, #FFB088)'
+                ? 'linear-gradient(135deg, #c84b31, #e06b4f)'
                 : 'transparent',
               color: activeTab === 'image' ? 'white' : '#666',
               fontWeight: '700',
@@ -741,10 +2083,11 @@ function CreatePost() {
               justifyContent: 'center',
               gap: '8px',
               transition: 'all 0.3s ease',
-              boxShadow: activeTab === 'image' ? '0 4px 15px rgba(255, 138, 101, 0.3)' : 'none'
+              boxShadow: activeTab === 'image' ? '0 4px 15px rgba(200, 75, 49, 0.3)' : 'none'
             }}
           >
-            🎨 Image / Flyer
+            <PaletteIcon size={16} color={activeTab === 'image' ? 'white' : '#666'} />
+            Image / Flyer
           </button>
           <button
             onClick={() => setActiveTab('texte')}
@@ -754,7 +2097,7 @@ function CreatePost() {
               borderRadius: '12px',
               border: 'none',
               background: activeTab === 'texte'
-                ? 'linear-gradient(135deg, #004E89, #0077CC)'
+                ? 'linear-gradient(135deg, #1a3a5c, #2a5a7c)'
                 : 'transparent',
               color: activeTab === 'texte' ? 'white' : '#666',
               fontWeight: '700',
@@ -765,10 +2108,11 @@ function CreatePost() {
               justifyContent: 'center',
               gap: '8px',
               transition: 'all 0.3s ease',
-              boxShadow: activeTab === 'texte' ? '0 4px 15px rgba(0, 78, 137, 0.3)' : 'none'
+              boxShadow: activeTab === 'texte' ? '0 4px 15px rgba(26, 58, 92, 0.3)' : 'none'
             }}
           >
-            ✍️ Légende
+            <TextIcon size={16} color={activeTab === 'texte' ? 'white' : '#666'} />
+            Légende
           </button>
         </div>
 
@@ -779,23 +2123,33 @@ function CreatePost() {
         {/* Bannière événement si applicable */}
         {eventTitle && (
           <div style={{
-            background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+            background: 'linear-gradient(135deg, #2d5a45, #3d7a5f)',
             borderRadius: '16px',
             padding: '16px 20px',
             marginBottom: '20px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'
+            boxShadow: '0 4px 15px rgba(45, 90, 69, 0.3)'
           }}>
-            <span style={{ fontSize: '24px' }}>📅</span>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <CalendarIcon size={20} color="white" />
+            </div>
             <div>
               <p style={{ color: 'white', fontWeight: '700', fontSize: '15px', margin: 0 }}>
                 {eventTitle}
               </p>
               {eventDate && (
                 <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '4px 0 0' }}>
-                  {eventDate}
+                  {new Date(eventDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </p>
               )}
             </div>
@@ -811,8 +2165,9 @@ function CreatePost() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
           border: '1px solid #DCE8F5'
         }}>
-          <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px' }}>
-            🎨 Décrivez votre visuel
+          <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PaletteIcon size={18} color="#c84b31" />
+            Décrivez votre visuel
           </label>
           <textarea
             value={imageDescription}
@@ -833,8 +2188,8 @@ function CreatePost() {
               transition: 'all 0.3s ease'
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#FF8A65';
-              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 138, 101, 0.1)';
+              e.currentTarget.style.borderColor = '#c84b31';
+              e.currentTarget.style.boxShadow = '0 0 0 4px rgba(200, 75, 49, 0.1)';
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = '#E5E7EB';
@@ -844,8 +2199,9 @@ function CreatePost() {
 
           {/* Contrôles avancés */}
           <div style={{ marginTop: '20px' }}>
-            <p style={{ fontWeight: '600', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
-              ⚙️ Options avancées
+            <p style={{ fontWeight: '600', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <SettingsIcon size={16} color="#666" />
+              Options avancées
             </p>
 
             {/* Style d'image */}
@@ -855,11 +2211,11 @@ function CreatePost() {
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {[
-                  { value: 'photo_realiste', label: '📷 Photo réaliste' },
-                  { value: 'illustration', label: '🎨 Illustration' },
-                  { value: 'minimaliste', label: '◻️ Minimaliste' },
-                  { value: 'vintage', label: '📜 Vintage' },
-                  { value: 'flat_design', label: '🔶 Flat design' }
+                  { value: 'photo_realiste', label: 'Photo réaliste' },
+                  { value: 'illustration', label: 'Illustration' },
+                  { value: 'minimaliste', label: 'Minimaliste' },
+                  { value: 'vintage', label: 'Vintage' },
+                  { value: 'flat_design', label: 'Flat design' }
                 ].map((style) => (
                   <button
                     key={style.value}
@@ -868,7 +2224,7 @@ function CreatePost() {
                       padding: '8px 14px',
                       borderRadius: '20px',
                       border: imageStyle === style.value ? 'none' : '2px solid #E5E7EB',
-                      background: imageStyle === style.value ? 'linear-gradient(135deg, #FF8A65, #FFB088)' : 'white',
+                      background: imageStyle === style.value ? 'linear-gradient(135deg, #c84b31, #e06b4f)' : 'white',
                       color: imageStyle === style.value ? 'white' : '#666',
                       fontSize: '13px',
                       fontWeight: '600',
@@ -942,8 +2298,9 @@ function CreatePost() {
             
             {/* Platform Selection */}
             <div style={{ marginBottom: '20px' }}>
-              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
-                📱 Plateforme
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+                <ImageIcon size={16} color="#1A1A2E" />
+                Plateforme
               </span>
               
               {/* Grid 2x2 */}
@@ -1054,8 +2411,9 @@ function CreatePost() {
 
             {/* Format Selection */}
             <div>
-              <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
-                📐 Format
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+                <SquareIcon size={16} color="#1A1A2E" />
+                Format
               </span>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
@@ -1063,8 +2421,8 @@ function CreatePost() {
                   style={{
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: `2px solid ${selectedFormat === 'carre' ? '#004E89' : '#E5E7EB'}`,
-                    backgroundColor: selectedFormat === 'carre' ? '#004E8920' : 'white',
+                    border: `2px solid ${selectedFormat === 'carre' ? '#1a3a5c' : '#E5E7EB'}`,
+                    backgroundColor: selectedFormat === 'carre' ? '#1a3a5c20' : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1073,7 +2431,7 @@ function CreatePost() {
                     flex: '1'
                   }}
                 >
-                  <div style={{ width: '24px', height: '24px', border: `2px solid ${selectedFormat === 'carre' ? '#004E89' : '#888'}`, borderRadius: '4px' }}></div>
+                  <div style={{ width: '24px', height: '24px', border: `2px solid ${selectedFormat === 'carre' ? '#1a3a5c' : '#888'}`, borderRadius: '4px' }}></div>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>Carré</div>
                     <div style={{ fontSize: '10px', color: '#888' }}>1080×1080</div>
@@ -1085,8 +2443,8 @@ function CreatePost() {
                   style={{
                     padding: '12px 16px',
                     borderRadius: '10px',
-                    border: `2px solid ${selectedFormat === 'story' ? '#004E89' : '#E5E7EB'}`,
-                    backgroundColor: selectedFormat === 'story' ? '#004E8920' : 'white',
+                    border: `2px solid ${selectedFormat === 'story' ? '#1a3a5c' : '#E5E7EB'}`,
+                    backgroundColor: selectedFormat === 'story' ? '#1a3a5c20' : 'white',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1095,7 +2453,7 @@ function CreatePost() {
                     flex: '1'
                   }}
                 >
-                  <div style={{ width: '16px', height: '24px', border: `2px solid ${selectedFormat === 'story' ? '#004E89' : '#888'}`, borderRadius: '3px' }}></div>
+                  <div style={{ width: '16px', height: '24px', border: `2px solid ${selectedFormat === 'story' ? '#1a3a5c' : '#888'}`, borderRadius: '3px' }}></div>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontWeight: '600', fontSize: '13px', color: '#1A1A2E' }}>Story</div>
                     <div style={{ fontSize: '10px', color: '#888' }}>1080×1920</div>
@@ -1107,8 +2465,9 @@ function CreatePost() {
 
           {/* Section Photo Upload */}
           <div style={{ marginBottom: '20px' }}>
-            <span style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
-              📸 Ajouter une photo (optionnel)
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1A1A2E', fontSize: '14px', marginBottom: '12px' }}>
+              <CameraIcon size={16} color="#1A1A2E" />
+              Ajouter une photo (optionnel)
             </span>
 
             {!uploadedPhoto ? (
@@ -1124,7 +2483,18 @@ function CreatePost() {
                   transition: 'all 0.2s'
                 }}
               >
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📷</div>
+                <div style={{
+                  width: '48px',
+                  height: '48px',
+                  margin: '0 auto 8px',
+                  backgroundColor: '#e8f4fd',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <UploadIcon size={24} color="#1a3a5c" />
+                </div>
                 <p style={{ color: '#666', fontSize: '13px', margin: 0 }}>
                   Cliquez pour ajouter une photo
                 </p>
@@ -1181,7 +2551,9 @@ function CreatePost() {
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>🖼️</div>
+                    <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+                      <ImageIcon size={20} color={photoMode === 'direct' ? '#10B981' : '#666'} />
+                    </div>
                     <div style={{ fontSize: '12px', fontWeight: '600', color: '#1A1A2E' }}>Utiliser directement</div>
                     <div style={{ fontSize: '10px', color: '#888' }}>Cette photo sera le post</div>
                   </button>
@@ -1191,13 +2563,15 @@ function CreatePost() {
                       flex: 1,
                       padding: '12px',
                       borderRadius: '10px',
-                      border: `2px solid ${photoMode === 'inspiration' ? '#8B5CF6' : '#E5E7EB'}`,
+                      border: `2px solid ${photoMode === 'inspiration' ? '#2d5a45' : '#E5E7EB'}`,
                       backgroundColor: photoMode === 'inspiration' ? '#EDE9FE' : 'white',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>✨</div>
+                    <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+                      <SparklesIcon size={20} color={photoMode === 'inspiration' ? '#2d5a45' : '#666'} />
+                    </div>
                     <div style={{ fontSize: '12px', fontWeight: '600', color: '#1A1A2E' }}>Inspiration</div>
                     <div style={{ fontSize: '10px', color: '#888' }}>L'IA s'inspire du style</div>
                   </button>
@@ -1223,8 +2597,9 @@ function CreatePost() {
           {business?.logo_url && (
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <span style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '14px' }}>
-                  🏷️ Ajouter votre logo
+                <span style={{ fontWeight: '700', color: '#1A1A2E', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <TagIcon size={16} color="#1A1A2E" />
+                  Ajouter votre logo
                 </span>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                   <input
@@ -1300,7 +2675,7 @@ function CreatePost() {
                             fontSize: '10px'
                           }}
                         >
-                          {logoPosition === pos ? '✓' : ''}
+                          {logoPosition === pos && <CheckIcon size={12} color="white" />}
                         </button>
                       ))}
                     </div>
@@ -1335,7 +2710,7 @@ function CreatePost() {
                           <div style={{
                             width: s.size,
                             height: s.size,
-                            backgroundColor: '#004E89',
+                            backgroundColor: '#1a3a5c',
                             borderRadius: '4px'
                           }} />
                           <span style={{ fontSize: '11px', color: '#666' }}>{s.label}</span>
@@ -1355,7 +2730,7 @@ function CreatePost() {
             style={{
               width: '100%',
               padding: '14px',
-              background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #FF8A65, #FFB088)',
+              background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #c84b31, #e06b4f)',
               border: 'none',
               borderRadius: '12px',
               color: generatingImage ? '#999' : 'white',
@@ -1366,13 +2741,13 @@ function CreatePost() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(255, 138, 101, 0.3)'
+              boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(200, 75, 49, 0.3)'
             }}
           >
             {generatingImage ? (
-              <>⏳ Génération en cours...</>
+              <><LoaderIcon size={16} color="#999" /> Génération en cours...</>
             ) : (
-              <>🎨 Générer l'image</>
+              <><SparklesIcon size={16} color="white" /> Générer l'image</>
             )}
           </button>
         </div>
@@ -1387,9 +2762,13 @@ function CreatePost() {
             color: '#DC2626',
             padding: '14px 20px',
             borderRadius: '12px',
-            marginBottom: '24px'
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}>
-            ⚠️ {error}
+            <AlertIcon size={18} color="#DC2626" />
+            {error}
           </div>
         )}
 
@@ -1399,23 +2778,33 @@ function CreatePost() {
           {/* Bannière événement si applicable */}
           {eventTitle && (
             <div style={{
-              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              background: 'linear-gradient(135deg, #2d5a45, #3d7a5f)',
               borderRadius: '16px',
               padding: '16px 20px',
               marginBottom: '20px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)'
+              boxShadow: '0 4px 15px rgba(45, 90, 69, 0.3)'
             }}>
-              <span style={{ fontSize: '24px' }}>📅</span>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CalendarIcon size={20} color="white" />
+              </div>
               <div>
                 <p style={{ color: 'white', fontWeight: '700', fontSize: '15px', margin: 0 }}>
                   {eventTitle}
                 </p>
                 {eventDate && (
                   <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', margin: '4px 0 0' }}>
-                    {eventDate}
+                    {new Date(eventDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </p>
                 )}
               </div>
@@ -1431,8 +2820,9 @@ function CreatePost() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
             border: '1px solid #DCE8F5'
           }}>
-            <label style={{ display: 'block', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px' }}>
-              ✍️ Décrivez votre légende
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1A1A2E', fontSize: '16px', marginBottom: '12px' }}>
+              <TextIcon size={18} color="#1a3a5c" />
+              Décrivez votre légende
             </label>
             <textarea
               value={textDescription}
@@ -1454,8 +2844,8 @@ function CreatePost() {
                 marginBottom: '16px'
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#004E89';
-                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(0, 78, 137, 0.1)';
+                e.currentTarget.style.borderColor = '#1a3a5c';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(26, 58, 92, 0.1)';
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = '#E5E7EB';
@@ -1468,7 +2858,7 @@ function CreatePost() {
               style={{
                 width: '100%',
                 padding: '14px',
-                background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #004E89, #0077CC)',
+                background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                 border: 'none',
                 borderRadius: '12px',
                 color: generating ? '#999' : 'white',
@@ -1479,10 +2869,14 @@ function CreatePost() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: generating ? 'none' : '0 4px 15px rgba(0, 78, 137, 0.3)'
+                boxShadow: generating ? 'none' : '0 4px 15px rgba(26, 58, 92, 0.3)'
               }}
             >
-              {generating ? '⏳ Génération en cours...' : '✍️ Générer les légendes'}
+              {generating ? (
+                <><LoaderIcon size={16} color="#999" /> Génération en cours...</>
+              ) : (
+                <><SparklesIcon size={16} color="white" /> Générer les légendes</>
+              )}
             </button>
           </div>
 
@@ -1499,13 +2893,13 @@ function CreatePost() {
               <span style={{
                 width: '28px',
                 height: '28px',
-                background: 'linear-gradient(135deg, #004E89, #0077CC)',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px'
-              }}>✍️</span>
+              }}><TextIcon size={20} color="#1a3a5c" /></span>
               Légendes Générées
             </h3>
 
@@ -1514,11 +2908,13 @@ function CreatePost() {
                 textAlign: 'center',
                 padding: '40px 16px',
                 color: '#999',
-                background: 'linear-gradient(135deg, #F0F7FF, #FFFFFF)',
+                background: 'linear-gradient(135deg, #e8f4fd, #FFFFFF)',
                 borderRadius: '12px',
                 border: '2px dashed #DCE8F5'
               }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>📝</div>
+                <div style={{ width: '56px', height: '56px', margin: '0 auto 12px', backgroundColor: '#e8f4fd', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TextIcon size={28} color="#1a3a5c" />
+                </div>
                 <p style={{ fontSize: '14px', fontWeight: '500' }}>Les textes apparaîtront ici</p>
               </div>
             ) : (
@@ -1530,8 +2926,8 @@ function CreatePost() {
                     style={{
                       padding: '14px',
                       borderRadius: '12px',
-                      border: `2px solid ${selectedVersion === index ? '#004E89' : '#E5E7EB'}`,
-                      backgroundColor: selectedVersion === index ? '#004E8908' : 'white',
+                      border: `2px solid ${selectedVersion === index ? '#1a3a5c' : '#E5E7EB'}`,
+                      backgroundColor: selectedVersion === index ? '#1a3a5c08' : 'white',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease'
                     }}
@@ -1539,13 +2935,13 @@ function CreatePost() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{
                         padding: '3px 10px',
-                        backgroundColor: index === 0 ? '#10B98120' : index === 1 ? '#004E8920' : '#8B5CF620',
-                        color: index === 0 ? '#10B981' : index === 1 ? '#004E89' : '#8B5CF6',
+                        backgroundColor: index === 0 ? '#10B98120' : index === 1 ? '#1a3a5c20' : '#2d5a4520',
+                        color: index === 0 ? '#10B981' : index === 1 ? '#1a3a5c' : '#2d5a45',
                         borderRadius: '50px',
                         fontSize: '11px',
                         fontWeight: '600'
                       }}>
-                        {index === 0 ? '📝 Courte' : index === 1 ? '📄 Moyenne' : '📚 Longue'}
+                        {index === 0 ? 'Courte' : index === 1 ? 'Moyenne' : 'Longue'}
                       </span>
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         {editedTexts[index] !== generatedTexts[index] && (
@@ -1557,12 +2953,12 @@ function CreatePost() {
                             fontSize: '10px',
                             fontWeight: '600'
                           }}>
-                            ✏️ Modifié
+                            Modifié
                           </span>
                         )}
                         {selectedVersion === index && (
-                          <span style={{ backgroundColor: '#004E89', color: 'white', padding: '3px 10px', borderRadius: '50px', fontSize: '11px', fontWeight: '600' }}>
-                            ✓ Sélectionnée
+                          <span style={{ backgroundColor: '#1a3a5c', color: 'white', padding: '3px 10px', borderRadius: '50px', fontSize: '11px', fontWeight: '600' }}>
+                            Sélectionnée
                           </span>
                         )}
                       </div>
@@ -1578,7 +2974,7 @@ function CreatePost() {
                           width: '100%',
                           minHeight: '120px',
                           padding: '12px',
-                          border: '2px solid #004E89',
+                          border: '2px solid #1a3a5c',
                           borderRadius: '8px',
                           fontSize: '13px',
                           lineHeight: '1.6',
@@ -1627,7 +3023,7 @@ function CreatePost() {
                       gap: '6px'
                     }}
                   >
-                    📋 Copier
+                    <CopyIcon size={14} color="#666" /> Copier
                   </button>
                   <button
                     onClick={handleRegenerateText}
@@ -1635,7 +3031,7 @@ function CreatePost() {
                     style={{
                       flex: 1,
                       padding: '12px',
-                      background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                      background: generating ? '#E5E7EB' : 'linear-gradient(135deg, #2d5a45, #3d7a5f)',
                       border: 'none',
                       borderRadius: '10px',
                       color: generating ? '#999' : 'white',
@@ -1648,7 +3044,7 @@ function CreatePost() {
                       gap: '6px'
                     }}
                   >
-                    {generating ? '⏳ Génération...' : '🔄 Régénérer'}
+                    {generating ? <><LoaderIcon size={14} color="#999" /> Génération...</> : <><RefreshIcon size={14} color="#666" /> Régénérer</>}
                   </button>
                 </div>
 
@@ -1659,7 +3055,7 @@ function CreatePost() {
                   textAlign: 'center',
                   margin: '4px 0 0'
                 }}>
-                  💡 Cliquez sur un texte pour le sélectionner et le modifier directement
+                  Cliquez sur un texte pour le sélectionner et le modifier directement
                 </p>
               </div>
             )}
@@ -1680,13 +3076,13 @@ function CreatePost() {
               <span style={{
                 width: '28px',
                 height: '28px',
-                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '14px'
-              }}>🎨</span>
+              }}><PaletteIcon size={16} color="white" /></span>
               Image Générée
             </h3>
 
@@ -1699,15 +3095,17 @@ function CreatePost() {
                 marginBottom: '12px',
                 fontSize: '13px'
               }}>
-                ⚠️ {imageError}
+                <AlertIcon size={16} color="#DC2626" /> {imageError}
               </div>
             )}
 
             {!generatedImage ? (
               <div style={{
                 aspectRatio: '1/1',
-                maxHeight: '250px',
-                background: 'linear-gradient(135deg, #FFF5F2, #F0F7FF)',
+                maxWidth: '300px',
+                width: '100%',
+                margin: '0 auto',
+                background: 'linear-gradient(135deg, #FFF8E7, #e8f4fd)',
                 borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1716,8 +3114,13 @@ function CreatePost() {
                 color: '#999',
                 border: '2px dashed #DCE8F5'
               }}>
-                <div style={{ fontSize: '40px', marginBottom: '12px' }}>🖼️</div>
-                <p style={{ fontSize: '14px', fontWeight: '500' }}>L'image apparaîtra ici</p>
+                <span style={{
+                  fontSize: '42px',
+                  fontFamily: "'Titan One', cursive",
+                  color: '#C84B31',
+                  marginBottom: '12px'
+                }}>AiNa</span>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>En attente de vos ordres, chef !</p>
               </div>
             ) : (
               <div>
@@ -1758,7 +3161,7 @@ function CreatePost() {
                     style={{
                       flex: 1,
                       padding: '12px',
-                      background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                      background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
                       border: 'none',
                       borderRadius: '10px',
                       color: 'white',
@@ -1769,10 +3172,10 @@ function CreatePost() {
                       justifyContent: 'center',
                       gap: '8px',
                       fontSize: '14px',
-                      boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)'
+                      boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)'
                     }}
                   >
-                    ✏️ Ajouter du texte
+                    <EditIcon size={14} color="white" /> Ajouter du texte
                   </button>
                   <button
                     onClick={handleGenerateImage}
@@ -1780,7 +3183,7 @@ function CreatePost() {
                     style={{
                       flex: 1,
                       padding: '12px',
-                      background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                      background: generatingImage ? '#E5E7EB' : 'linear-gradient(135deg, #2d5a45, #3d7a5f)',
                       border: 'none',
                       borderRadius: '10px',
                       color: generatingImage ? '#999' : 'white',
@@ -1791,10 +3194,10 @@ function CreatePost() {
                       justifyContent: 'center',
                       gap: '8px',
                       fontSize: '14px',
-                      boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(139, 92, 246, 0.3)'
+                      boxShadow: generatingImage ? 'none' : '0 4px 15px rgba(45, 90, 69, 0.3)'
                     }}
                   >
-                    {generatingImage ? '⏳ Génération...' : '🔄 Régénérer'}
+                    {generatingImage ? <><LoaderIcon size={14} color="#999" /> Génération...</> : <><RefreshIcon size={14} color="white" /> Régénérer</>}
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -1817,7 +3220,7 @@ function CreatePost() {
                       boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                     }}
                   >
-                    💾 Télécharger
+                    <DownloadIcon size={14} color="white" /> Télécharger
                   </button>
                   <button
                     onClick={handleSavePost}
@@ -1827,7 +3230,7 @@ function CreatePost() {
                       padding: '12px',
                       background: saved
                         ? 'linear-gradient(135deg, #10B981, #34D399)'
-                        : 'linear-gradient(135deg, #004E89, #0077CC)',
+                        : 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                       border: 'none',
                       borderRadius: '10px',
                       color: 'white',
@@ -1839,12 +3242,221 @@ function CreatePost() {
                       gap: '8px',
                       fontSize: '14px',
                       opacity: saving ? 0.7 : 1,
-                      boxShadow: saved ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(0, 78, 137, 0.3)'
+                      boxShadow: saved ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(26, 58, 92, 0.3)'
                     }}
                   >
-                    {saving ? '⏳ Sauvegarde...' : saved ? '✓ Sauvegardé !' : '📌 Sauvegarder'}
+                    {saving ? <><LoaderIcon size={14} color="#999" /> Sauvegarde...</> : saved ? <><CheckIcon size={14} color="white" /> Sauvegardé !</> : <><SaveIcon size={14} color="white" /> Sauvegarder</>}
                   </button>
                 </div>
+
+                {/* Zone de conversation pour modifier l'image */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  backgroundColor: '#F9FAFB',
+                  borderRadius: '12px',
+                  border: '1px solid #E5E7EB'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '12px'
+                  }}>
+                    <p style={{
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: '#1A1A2E',
+                      margin: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <SparklesIcon size={14} color="#8B5CF6" />
+                      Modifier l'image
+                    </p>
+                    <button
+                      onClick={handleResetImage}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: 'white',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        color: '#DC2626',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <RefreshIcon size={12} color="#DC2626" />
+                      Recommencer
+                    </button>
+                  </div>
+
+                  {/* Historique de conversation */}
+                  {imageConversation.length > 0 && (
+                    <div style={{
+                      maxHeight: '150px',
+                      overflowY: 'auto',
+                      marginBottom: '12px',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      borderRadius: '8px',
+                      border: '1px solid #E5E7EB'
+                    }}>
+                      {imageConversation.filter(msg => msg.role === 'user').map((msg, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            padding: '6px 10px',
+                            marginBottom: index < imageConversation.filter(m => m.role === 'user').length - 1 ? '6px' : 0,
+                            backgroundColor: '#EEF2FF',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            color: '#4F46E5'
+                          }}
+                        >
+                          {msg.content}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Input de modification */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={modificationInput}
+                      onChange={(e) => setModificationInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && !generatingImage && handleModifyImage()}
+                      placeholder="Ex: Ajoute plus de lumière, change les couleurs..."
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        borderRadius: '10px',
+                        border: '2px solid #E5E7EB',
+                        fontSize: '13px',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={handleModifyImage}
+                      disabled={generatingImage || !modificationInput.trim()}
+                      style={{
+                        padding: '12px 16px',
+                        background: generatingImage || !modificationInput.trim()
+                          ? '#E5E7EB'
+                          : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: generatingImage || !modificationInput.trim() ? '#999' : 'white',
+                        fontWeight: '600',
+                        cursor: generatingImage || !modificationInput.trim() ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '13px'
+                      }}
+                    >
+                      {generatingImage ? <LoaderIcon size={14} color="#999" /> : <SparklesIcon size={14} color="white" />}
+                      Modifier
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#888', marginTop: '8px', margin: '8px 0 0' }}>
+                    Demandez des modifications et l'IA ajustera l'image existante
+                  </p>
+                </div>
+
+                {/* Bouton Affilier à l'événement OU Planifier */}
+                {eventId ? (
+                  <button
+                    onClick={handleAffiliateToEvent}
+                    disabled={affiliating || affiliated}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: affiliated
+                        ? 'linear-gradient(135deg, #10B981, #34D399)'
+                        : 'linear-gradient(135deg, #1a3a5c, #2d5a7c)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: affiliating || affiliated ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      marginTop: '10px',
+                      boxShadow: affiliated ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(26, 58, 92, 0.3)'
+                    }}
+                  >
+                    {affiliating ? (
+                      <><LoaderIcon size={14} color="white" /> Affiliation...</>
+                    ) : affiliated ? (
+                      <><CheckIcon size={14} color="white" /> Affilié à l'événement !</>
+                    ) : (
+                      <><CalendarIcon size={14} color="white" /> Affilier à "{eventTitle}"</>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    disabled={scheduled}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: scheduled
+                        ? 'linear-gradient(135deg, #10B981, #34D399)'
+                        : 'linear-gradient(135deg, #c84b31, #e06b4f)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontSize: '14px',
+                      marginTop: '10px',
+                      boxShadow: scheduled ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(200, 75, 49, 0.3)'
+                    }}
+                  >
+                    {scheduled ? <><CheckIcon size={14} color="white" /> Planifié !</> : <><CalendarIcon size={14} color="white" /> Planifier dans le calendrier</>}
+                  </button>
+                )}
+
+                {/* Bouton Sauvegarder comme template */}
+                <button
+                  onClick={() => setShowTemplateModal(true)}
+                  disabled={templateSaved}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: templateSaved
+                      ? 'linear-gradient(135deg, #10B981, #34D399)'
+                      : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    marginTop: '10px',
+                    boxShadow: templateSaved ? '0 4px 15px rgba(16, 185, 129, 0.3)' : '0 4px 15px rgba(139, 92, 246, 0.3)'
+                  }}
+                >
+                  {templateSaved ? <><CheckIcon size={14} color="white" /> Template sauvegardé !</> : <>📋 Sauvegarder comme template</>}
+                </button>
 
                 {saved && (
                   <div style={{
@@ -1859,6 +3471,20 @@ function CreatePost() {
                     ✅ Post sauvegardé ! L'IA s'en inspirera pour vos futurs posts.
                   </div>
                 )}
+
+                {affiliated && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    backgroundColor: '#DBEAFE',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#1E40AF',
+                    textAlign: 'center'
+                  }}>
+                    ✅ Post affilié à l'événement "{eventTitle}" ! Retrouvez-le dans votre calendrier.
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1867,7 +3493,7 @@ function CreatePost() {
         {/* Indicateur d'historique */}
         {savedPosts.length > 0 && (
           <div style={{
-            backgroundColor: '#F0F7FF',
+            backgroundColor: '#e8f4fd',
             borderRadius: '12px',
             padding: '12px 16px',
             marginTop: '16px',
@@ -1875,18 +3501,380 @@ function CreatePost() {
             alignItems: 'center',
             gap: '10px'
           }}>
-            <span style={{ fontSize: '20px' }}>🤖</span>
-            <p style={{ fontSize: '12px', color: '#004E89', margin: 0 }}>
+            <SparklesIcon size={18} color="#1a3a5c" />
+            <p style={{ fontSize: '12px', color: '#1a3a5c', margin: 0 }}>
               L'IA s'inspire de vos {savedPosts.length} post(s) précédent(s) pour maintenir votre style
             </p>
           </div>
         )}
+          </>
+        )}
       </main>
+
+      {/* Modal de planification */}
+      {showScheduleModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#FFF8E7',
+            borderRadius: '20px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '380px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            border: '2px solid #c84b31'
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <CalendarIcon size={20} color="white" />
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
+                Planifier ce post
+              </h2>
+            </div>
+
+            {/* Aperçu du post */}
+            {generatedImage && (
+              <div style={{
+                marginBottom: '16px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: '1px solid #E5E7EB'
+              }}>
+                <img
+                  src={generatedImage}
+                  alt="Aperçu"
+                  style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+
+            {/* Sélection de la date */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                marginBottom: '8px'
+              }}>
+                Date de publication
+              </label>
+              <input
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '2px solid #E5E7EB',
+                  fontSize: '14px',
+                  backgroundColor: 'white'
+                }}
+              />
+            </div>
+
+            {/* Heure de publication */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                marginBottom: '8px'
+              }}>
+                Heure de publication
+              </label>
+              <input
+                type="time"
+                value={scheduleTime}
+                onChange={(e) => setScheduleTime(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '2px solid #E5E7EB',
+                  fontSize: '14px',
+                  backgroundColor: 'white'
+                }}
+              />
+            </div>
+
+            {/* Plateforme sélectionnée */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#e8f4fd',
+              borderRadius: '10px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              color: '#1a3a5c'
+            }}>
+              <strong>Plateforme:</strong> {selectedPlatform || 'Non spécifiée'}
+              {selectedVersion !== null && editedTexts[selectedVersion] && (
+                <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#666' }}>
+                  {editedTexts[selectedVersion].substring(0, 80)}...
+                </p>
+              )}
+            </div>
+
+            {/* Boutons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'white',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '10px',
+                  color: '#666',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSchedulePost}
+                disabled={!scheduleDate || scheduling}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: !scheduleDate ? '#ccc' : 'linear-gradient(135deg, #c84b31, #e06b4f)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: !scheduleDate || scheduling ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                {scheduling ? <><LoaderIcon size={14} color="white" /> Planification...</> : 'Planifier'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sauvegarder comme template */}
+      {showTemplateModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#FFF8E7',
+            borderRadius: '20px',
+            padding: '24px',
+            width: '100%',
+            maxWidth: '380px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+            border: '2px solid #8B5CF6'
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '20px' }}>📋</span>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
+                Sauvegarder comme template
+              </h2>
+            </div>
+
+            {/* Aperçu du post */}
+            {generatedImage && (
+              <div style={{
+                marginBottom: '16px',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: '1px solid #E5E7EB'
+              }}>
+                <img
+                  src={generatedImage}
+                  alt="Aperçu"
+                  style={{ width: '100%', height: '100px', objectFit: 'cover' }}
+                />
+              </div>
+            )}
+
+            {/* Nom du template */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                marginBottom: '8px'
+              }}>
+                Nom du template *
+              </label>
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Ex: Promo du weekend, Nouveau produit..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: '2px solid #E5E7EB',
+                  fontSize: '14px',
+                  backgroundColor: 'white'
+                }}
+              />
+            </div>
+
+            {/* Catégorie */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: '#1A1A2E',
+                marginBottom: '8px'
+              }}>
+                Catégorie
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {templateCategories.map(cat => (
+                  <button
+                    key={cat.value}
+                    onClick={() => setTemplateCategory(cat.value)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '50px',
+                      border: templateCategory === cat.value ? 'none' : '2px solid #E5E7EB',
+                      background: templateCategory === cat.value
+                        ? 'linear-gradient(135deg, #8B5CF6, #A78BFA)'
+                        : 'white',
+                      color: templateCategory === cat.value ? 'white' : '#374151',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span>{cat.icon}</span>
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Info */}
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#F3E8FF',
+              borderRadius: '10px',
+              marginBottom: '20px',
+              fontSize: '12px',
+              color: '#6B21A8'
+            }}>
+              💡 Ce template sauvegardera l'image, la légende et les paramètres pour une réutilisation rapide.
+            </div>
+
+            {/* Boutons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setShowTemplateModal(false);
+                  setTemplateName('');
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: 'white',
+                  border: '2px solid #E5E7EB',
+                  borderRadius: '10px',
+                  color: '#666',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSaveAsTemplate}
+                disabled={!templateName.trim() || savingTemplate}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: !templateName.trim() ? '#ccc' : 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: !templateName.trim() || savingTemplate ? 'not-allowed' : 'pointer',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                {savingTemplate ? <><LoaderIcon size={14} color="white" /> Sauvegarde...</> : '📋 Sauvegarder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CSS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
+
+        * {
+          box-sizing: border-box;
+        }
+
+        html, body {
+          overflow-x: hidden;
+          max-width: 100vw;
+        }
+
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.05); opacity: 0.8; }
@@ -1896,7 +3884,7 @@ function CreatePost() {
           from { opacity: 0; transform: translateY(-5px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        
+
         textarea::placeholder {
           color: #999;
         }

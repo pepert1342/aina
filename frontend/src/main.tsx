@@ -12,6 +12,7 @@ import CreatePost from './pages/CreatePost.tsx'
 import Moodboard from './pages/Moodboard.tsx'
 import Pricing from './pages/Pricing.tsx'
 import SubscriptionPage from './pages/Subscription.tsx'
+import Templates from './pages/Templates.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -27,6 +28,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/moodboard" element={<Moodboard />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/subscription" element={<SubscriptionPage />} />
+        <Route path="/templates" element={<Templates />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

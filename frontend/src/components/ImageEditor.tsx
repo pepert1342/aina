@@ -24,9 +24,9 @@ interface ImageEditorProps {
 }
 
 const FONTS = [
+  { name: 'Plus Jakarta Sans', value: 'Plus Jakarta Sans, sans-serif' },
   { name: 'Poppins', value: 'Poppins, sans-serif' },
   { name: 'Montserrat', value: 'Montserrat, sans-serif' },
-  { name: 'Inter', value: 'Inter, sans-serif' },
   { name: 'Playfair', value: 'Playfair Display, serif' },
   { name: 'Roboto', value: 'Roboto, sans-serif' },
   { name: 'Oswald', value: 'Oswald, sans-serif' },

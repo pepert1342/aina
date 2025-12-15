@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { generateYearEvents } from '../autoEvents';
-import logoAina from '/logo-aina.png';
+import { HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon, DiamondIcon, LogoutIcon, PaletteIcon, DownloadIcon, CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon, CalendarIcon } from '../components/Icons';
+import { NotificationBell } from '../components/Notifications';
 
 const locales = { 'fr': fr };
 const localizer = dateFnsLocalizer({
@@ -25,10 +26,14 @@ interface EventType {
   event_type: string;
   description?: string;
   isAuto?: boolean; // true = événement automatique (fête, férié...)
+  post_id?: string;
+  post_image_url?: string;
+  post_text?: string;
 }
 
 function CalendarPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [userEvents, setUserEvents] = useState<EventType[]>([]);
   const [autoEvents, setAutoEvents] = useState<EventType[]>([]);
@@ -38,22 +43,65 @@ function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState<string>('month');
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [pendingEventId, setPendingEventId] = useState<string | null>(null);
+  const [hiddenEventKeys, setHiddenEventKeys] = useState<Set<string>>(new Set());
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ show: false, title: '', message: '', onConfirm: () => {} });
 
-  // Tous les événements combinés
-  const allEvents = [...userEvents, ...autoEvents];
+  // Afficher une confirmation personnalisée
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ show: true, title, message, onConfirm });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: () => {} });
+  };
+
+  // Générer une clé unique pour un événement
+  const generateEventKey = (event: EventType): string => {
+    const dateStr = event.start.toISOString().split('T')[0];
+    const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    return `${titleSlug}-${dateStr}`;
+  };
+
+  // Masquer un événement suggéré
+  const hideEvent = async (event: EventType) => {
+    if (!user) return;
+    const eventKey = generateEventKey(event);
+
+    const { error } = await supabase
+      .from('hidden_events')
+      .insert({ user_id: user.id, event_key: eventKey });
+
+    if (!error) {
+      setHiddenEventKeys(prev => new Set([...prev, eventKey]));
+      setAutoEvents(prev => prev.filter(e => generateEventKey(e) !== eventKey));
+      setSelectedEvent(null); // Fermer le popup
+    }
+  };
+
+  // Tous les événements combinés (filtrés)
+  const allEvents = [...userEvents, ...autoEvents.filter(e => !hiddenEventKeys.has(generateEventKey(e)))];
 
   // Form state
   const [newTitle, setNewTitle] = useState('');
   const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('12:00');
   const [newType, setNewType] = useState('Promotion');
   const [newDescription, setNewDescription] = useState('');
 
   const eventTypes = [
-    { value: 'Promotion', icon: '🏷️', color: '#FF6B35' },
-    { value: 'Événement', icon: '🎉', color: '#8B5CF6' },
+    { value: 'Promotion', icon: '🏷️', color: '#c84b31' },
+    { value: 'Événement', icon: '🎉', color: '#2d5a45' },
     { value: 'Fête', icon: '🎊', color: '#EC4899' },
     { value: 'Nouveau produit', icon: '✨', color: '#10B981' },
-    { value: 'Soirée', icon: '🌙', color: '#004E89' },
+    { value: 'Soirée', icon: '🌙', color: '#1a3a5c' },
     { value: 'Jeu concours', icon: '🎁', color: '#F59E0B' },
     { value: 'Anniversaire', icon: '🎂', color: '#EF4444' }
   ];
@@ -61,7 +109,29 @@ function CalendarPage() {
   useEffect(() => {
     checkUser();
     loadAutoEvents();
+
+    // Lire les paramètres URL
+    const dateParam = searchParams.get('date');
+    const eventIdParam = searchParams.get('eventId');
+
+    if (dateParam) {
+      setCurrentDate(new Date(dateParam));
+    }
+    if (eventIdParam) {
+      setPendingEventId(eventIdParam);
+    }
   }, []);
+
+  // Ouvrir automatiquement l'événement quand les données sont chargées
+  useEffect(() => {
+    if (pendingEventId && userEvents.length > 0) {
+      const eventToOpen = userEvents.find(e => e.id === pendingEventId);
+      if (eventToOpen) {
+        setSelectedEvent(eventToOpen);
+        setPendingEventId(null);
+      }
+    }
+  }, [pendingEventId, userEvents]);
 
   const loadAutoEvents = () => {
     const currentYear = new Date().getFullYear();
@@ -94,16 +164,60 @@ function CalendarPage() {
     }
     setUser(session.user);
     await loadEvents(session.user.id);
+
+    // Charger les événements masqués
+    const { data: hiddenData } = await supabase
+      .from('hidden_events')
+      .select('event_key')
+      .eq('user_id', session.user.id);
+    if (hiddenData) {
+      setHiddenEventKeys(new Set(hiddenData.map(e => e.event_key)));
+    }
+
+    // Charger l'abonnement
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (subData) setSubscription(subData);
+
     setLoading(false);
   };
 
   const loadEvents = async (userId: string) => {
+    // Charger les événements
     const { data, error } = await supabase
       .from('events')
       .select('*')
       .eq('user_id', userId);
 
+    if (error) {
+      console.error('Erreur chargement events:', error);
+      return;
+    }
+
     if (data) {
+      // Récupérer les post_ids qui existent
+      const postIds = data.filter(e => e.post_id).map(e => e.post_id);
+
+      // Charger les posts associés si il y en a
+      let postsMap: Record<string, any> = {};
+      if (postIds.length > 0) {
+        const { data: postsData } = await supabase
+          .from('posts_history')
+          .select('id, image_url, text_content')
+          .in('id', postIds);
+
+        if (postsData) {
+          postsData.forEach(post => {
+            postsMap[post.id] = post;
+          });
+        }
+      }
+
       const formattedEvents = data.map(event => ({
         id: event.id,
         title: event.title,
@@ -111,7 +225,10 @@ function CalendarPage() {
         end: new Date(event.event_date),
         event_type: event.event_type,
         description: event.description,
-        isAuto: false
+        isAuto: false,
+        post_id: event.post_id,
+        post_image_url: event.post_id ? postsMap[event.post_id]?.image_url : undefined,
+        post_text: event.post_id ? postsMap[event.post_id]?.text_content : undefined
       }));
       setUserEvents(formattedEvents);
     }
@@ -124,14 +241,17 @@ function CalendarPage() {
     }
 
     setSaving(true);
-    
+
+    // Combiner date et heure
+    const eventDateTime = `${newDate}T${newTime}:00`;
+
     try {
       const { data, error } = await supabase
         .from('events')
         .insert({
           user_id: user.id,
           title: newTitle.trim(),
-          event_date: newDate,
+          event_date: eventDateTime,
           event_type: newType,
           description: newDescription.trim() || null
         })
@@ -176,6 +296,7 @@ function CalendarPage() {
   const openModal = () => {
     setNewTitle('');
     setNewDate('');
+    setNewTime('12:00');
     setNewType('Promotion');
     setNewDescription('');
     setModalOpen(true);
@@ -185,6 +306,7 @@ function CalendarPage() {
     setModalOpen(false);
     setNewTitle('');
     setNewDate('');
+    setNewTime('12:00');
     setNewType('Promotion');
     setNewDescription('');
   };
@@ -194,9 +316,114 @@ function CalendarPage() {
     navigate('/login');
   };
 
+  // Fonction pour générer un fichier ICS (iCalendar)
+  const generateICS = (events: EventType[]): string => {
+    const formatDateICS = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+    };
+
+    const escapeICS = (text: string): string => {
+      return text
+        .replace(/\\/g, '\\\\')
+        .replace(/;/g, '\\;')
+        .replace(/,/g, '\\,')
+        .replace(/\n/g, '\\n');
+    };
+
+    let icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//AiNa//Calendrier Commercial//FR',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'X-WR-CALNAME:AiNa - Calendrier Commercial',
+      'X-WR-TIMEZONE:Europe/Paris'
+    ].join('\r\n');
+
+    events.forEach(event => {
+      const startDate = formatDateICS(event.start);
+      const endDate = formatDateICS(new Date(event.start.getTime() + 60 * 60 * 1000)); // +1h par défaut
+      const uid = `${event.id}@aina-app.com`;
+      const now = formatDateICS(new Date());
+
+      icsContent += '\r\n' + [
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${now}`,
+        `DTSTART:${startDate}`,
+        `DTEND:${endDate}`,
+        `SUMMARY:${escapeICS(event.title)}`,
+        event.description ? `DESCRIPTION:${escapeICS(event.description)}` : '',
+        `CATEGORIES:${event.event_type}`,
+        'END:VEVENT'
+      ].filter(line => line).join('\r\n');
+    });
+
+    icsContent += '\r\nEND:VCALENDAR';
+    return icsContent;
+  };
+
+  // Exporter tous les événements
+  const handleExportCalendar = (eventsToExport: 'all' | 'user' | 'auto' = 'all') => {
+    let events: EventType[] = [];
+    let filename = 'aina-calendrier';
+
+    switch (eventsToExport) {
+      case 'user':
+        events = userEvents;
+        filename = 'aina-mes-evenements';
+        break;
+      case 'auto':
+        events = autoEvents;
+        filename = 'aina-evenements-sugeres';
+        break;
+      default:
+        events = allEvents;
+        filename = 'aina-calendrier-complet';
+    }
+
+    if (events.length === 0) {
+      alert('Aucun événement à exporter');
+      return;
+    }
+
+    const icsContent = generateICS(events);
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Exporter un seul événement
+  const handleExportSingleEvent = (event: EventType) => {
+    const icsContent = generateICS([event]);
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `aina-${event.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const getEventColor = (eventType: string) => {
     const type = eventTypes.find(t => t.value === eventType);
-    return type?.color || '#FF6B35';
+    return type?.color || '#c84b31';
   };
 
   const eventStyleGetter = (event: EventType) => {
@@ -205,7 +432,7 @@ function CalendarPage() {
       const autoColors: Record<string, string> = {
         'ferie': '#3B82F6',
         'commercial': '#F59E0B', 
-        'fete': '#8B5CF6',
+        'fete': '#2d5a45',
         'saison': '#10B981'
       };
       const color = autoColors[event.event_type] || '#6B7280';
@@ -252,26 +479,35 @@ function CalendarPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #FFF5F2, #F0F7FF)',
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+        background: '#FFF8E7',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+        <div style={{ textAlign: 'center' }}>
           <div style={{
-            width: '60px',
-            height: '60px',
-            background: 'linear-gradient(135deg, #FF6B35, #004E89)',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: '800',
-            fontSize: '24px'
+            fontSize: '48px',
+            marginBottom: '16px',
+            animation: 'spin 1.5s ease-in-out infinite'
           }}>
-            A
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#C84B31" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+            </svg>
           </div>
-          <p style={{ color: '#666', fontWeight: '500' }}>Chargement...</p>
+          <span style={{
+            fontSize: '32px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31',
+            display: 'block',
+            marginBottom: '8px'
+          }}>AiNa</span>
+          <p style={{ color: '#666' }}>Chargement...</p>
         </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+            100% { transform: rotate(180deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -279,12 +515,12 @@ function CalendarPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #FFF5F2 0%, #F0F7FF 50%, #F5F0FF 100%)',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+      background: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         borderBottom: '1px solid #E5E7EB',
         position: 'sticky',
         top: 0,
@@ -299,23 +535,14 @@ function CalendarPage() {
           alignItems: 'center'
         }}>
           {/* Logo */}
-          <div 
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+          <div
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
             onClick={() => navigate('/dashboard')}
           >
-            <img 
-              src={logoAina} 
-              alt="AiNa" 
-              style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-            />
-            <span style={{ 
-              fontSize: '22px', 
-              fontWeight: '800',
-              fontFamily: "'Poppins', sans-serif",
-              background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+            <span style={{
+              fontSize: '28px',
+              fontFamily: "'Titan One', cursive",
+              color: '#C84B31'
             }}>
               AiNa
             </span>
@@ -323,39 +550,283 @@ function CalendarPage() {
 
           {/* Boutons à droite */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {user && <NotificationBell userId={user.id} />}
             <button
-              onClick={openModal}
+              onClick={() => navigate('/dashboard')}
               style={{
-                padding: '8px 12px',
-                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                padding: '10px 16px',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 color: 'white',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '12px',
-                boxShadow: '0 4px 15px rgba(255, 138, 101, 0.3)',
-                whiteSpace: 'nowrap'
+                fontSize: '13px',
+                boxShadow: '0 4px 15px rgba(26, 58, 92, 0.3)',
+                whiteSpace: 'nowrap',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              + Événement
+              <HomeIcon size={14} color="white" /> Accueil
             </button>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: 'transparent',
-                border: '1px solid #E5E7EB',
-                borderRadius: '8px',
-                color: '#666',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '12px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Déconnexion
-            </button>
+
+            {/* User Menu */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  background: '#C84B31',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFF8E7',
+                  fontSize: '15px',
+                  fontFamily: "'Titan One', cursive",
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(200, 75, 49, 0.3)'
+                }}
+              >
+                {user?.email?.charAt(0).toUpperCase()}
+              </button>
+
+              {/* Menu déroulant */}
+              {showUserMenu && (
+                <>
+                  <div
+                    onClick={() => setShowUserMenu(false)}
+                    style={{
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 99
+                    }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: '48px',
+                    right: 0,
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    border: '1px solid #E5E7EB',
+                    minWidth: '200px',
+                    zIndex: 100,
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      padding: '14px 16px',
+                      borderBottom: '1px solid #E5E7EB',
+                      backgroundColor: '#F9FAFB'
+                    }}>
+                      <p style={{ fontSize: '12px', color: '#888', margin: '0 0 4px 0' }}>Connecté en tant que</p>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0, wordBreak: 'break-all' }}>
+                        {user?.email}
+                      </p>
+                    </div>
+
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/subscription');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <DiamondIcon size={18} color="#2d5a45" />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E', margin: 0 }}>
+                          Mon abonnement
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#10B981', margin: '2px 0 0', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {subscription?.plan === 'yearly' ? 'Pro Annuel' : 'Pro Mensuel'} <CheckIcon size={12} color="#10B981" />
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Nouveau Post */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/create');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <PlusIcon size={18} color="#c84b31" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Nouveau Post
+                      </p>
+                    </div>
+
+                    {/* Calendrier (page actuelle) */}
+                    <div
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        backgroundColor: '#e8f4fd',
+                        borderBottom: '1px solid #E5E7EB'
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a3a5c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#1a3a5c', margin: 0 }}>
+                        Calendrier
+                      </p>
+                    </div>
+
+                    {/* Moodboard */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/moodboard');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <PaletteIcon size={18} color="#2d5a45" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Moodboard
+                      </p>
+                    </div>
+
+                    {/* Mes Posts */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=posts');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <ImageIcon size={18} color="#8B5CF6" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Mes Posts
+                      </p>
+                    </div>
+
+                    {/* Tips & Conseils */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=tips');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <LightbulbIcon size={18} color="#2d5a45" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Tips & Conseils
+                      </p>
+                    </div>
+
+                    {/* Statistiques */}
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        navigate('/dashboard?tab=stats');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #E5E7EB',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F9FAFB'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <TrendingUpIcon size={18} color="#8B5CF6" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', margin: 0 }}>
+                        Statistiques
+                      </p>
+                    </div>
+
+                    <div
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        handleLogout();
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FEE2E2'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                    >
+                      <LogoutIcon size={18} color="#DC2626" />
+                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#DC2626', margin: 0 }}>
+                        Déconnexion
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -369,8 +840,26 @@ function CalendarPage() {
       }}>
         {/* Page Title */}
         <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1A1A2E', marginBottom: '8px' }}>
-            📅 Calendrier
+          <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1A1A2E', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              width: '42px',
+              height: '42px',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+              borderRadius: '10px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px'
+            }}>
+              <div style={{ color: 'white', fontSize: '8px', fontWeight: '700', marginBottom: '2px' }}>
+                {new Date().toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase()}
+              </div>
+              <div style={{ color: 'white', fontSize: '16px', fontWeight: '800', lineHeight: '1' }}>
+                {new Date().getDate()}
+              </div>
+            </div>
+            Calendrier
           </h1>
           <p style={{ color: '#666' }}>
             Planifiez vos événements et générez des posts automatiquement
@@ -411,13 +900,37 @@ function CalendarPage() {
           ))}
         </div>
 
+        {/* Bouton Ajouter Événement */}
+        <div style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <button
+            onClick={openModal}
+            style={{
+              padding: '14px 24px',
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+              border: 'none',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: '700',
+              fontSize: '14px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(200, 75, 49, 0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <PlusIcon size={16} color="white" />
+            Ajouter un événement
+          </button>
+        </div>
+
         {/* Calendar Container */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '24px',
           padding: '24px',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(255, 107, 53, 0.1)'
+          boxShadow: '0 4px 20px rgba(26, 58, 92, 0.12)',
+          border: '3px solid #1a3a5c'
         }}>
           <Calendar
             localizer={localizer}
@@ -433,8 +946,8 @@ function CalendarPage() {
             onView={handleViewChange}
             views={['month', 'week', 'day', 'agenda']}
             messages={{
-              next: "Suivant",
-              previous: "Précédent",
+              next: "›",
+              previous: "‹",
               today: "Aujourd'hui",
               month: "Mois",
               week: "Semaine",
@@ -444,6 +957,31 @@ function CalendarPage() {
             }}
           />
         </div>
+
+        {/* Bouton Exporter en bas */}
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={() => handleExportCalendar('all')}
+            style={{
+              padding: '14px 24px',
+              background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+              border: 'none',
+              borderRadius: '12px',
+              color: 'white',
+              fontWeight: '700',
+              fontSize: '14px',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(26, 58, 92, 0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <DownloadIcon size={16} color="white" />
+            Exporter le calendrier
+          </button>
+        </div>
+
       </main>
 
       {/* Add Event Modal */}
@@ -466,24 +1004,37 @@ function CalendarPage() {
         >
           <div
             style={{
-              backgroundColor: 'white',
-              borderRadius: '24px',
-              padding: '32px',
+              backgroundColor: '#FFF8E7',
+              borderRadius: '20px',
+              padding: '24px',
               width: '100%',
-              maxWidth: '500px',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)'
+              maxWidth: '380px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+              border: '2px solid #c84b31'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#1A1A2E', marginBottom: '24px' }}>
-              ✨ Nouvel événement
-            </h2>
+            {/* Header avec couleur */}
+            <div style={{
+              background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <PlusIcon size={20} color="white" />
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>
+                Nouvel événement
+              </h2>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Title */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1A1A2E', fontSize: '14px' }}>
-                  Titre de l'événement *
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#1A1A2E', fontSize: '13px' }}>
+                  Titre *
                 </label>
                 <input
                   type="text"
@@ -492,10 +1043,10 @@ function CalendarPage() {
                   placeholder="Ex: Soirée Jazz"
                   style={{
                     width: '100%',
-                    padding: '16px',
+                    padding: '12px',
                     border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    fontSize: '16px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
@@ -504,7 +1055,7 @@ function CalendarPage() {
 
               {/* Date */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1A1A2E', fontSize: '14px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#1A1A2E', fontSize: '13px' }}>
                   Date *
                 </label>
                 <input
@@ -513,10 +1064,31 @@ function CalendarPage() {
                   onChange={(e) => setNewDate(e.target.value)}
                   style={{
                     width: '100%',
-                    padding: '16px',
+                    padding: '12px',
                     border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    fontSize: '16px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Heure */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#1A1A2E', fontSize: '13px' }}>
+                  Heure
+                </label>
+                <input
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
+                    fontSize: '14px',
                     outline: 'none',
                     boxSizing: 'border-box'
                   }}
@@ -525,26 +1097,26 @@ function CalendarPage() {
 
               {/* Type */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1A1A2E', fontSize: '14px' }}>
-                  Type d'événement
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#1A1A2E', fontSize: '13px' }}>
+                  Type
                 </label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {eventTypes.map(type => (
                     <button
                       key={type.value}
                       type="button"
                       onClick={() => setNewType(type.value)}
                       style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
+                        padding: '8px 10px',
+                        borderRadius: '8px',
                         border: `2px solid ${newType === type.value ? type.color : '#E5E7EB'}`,
-                        backgroundColor: newType === type.value ? `${type.color}15` : 'white',
+                        backgroundColor: newType === type.value ? `${type.color}20` : 'white',
                         cursor: 'pointer',
-                        fontSize: '13px',
-                        fontWeight: '500',
+                        fontSize: '11px',
+                        fontWeight: '600',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '4px'
                       }}
                     >
                       {type.icon} {type.value}
@@ -555,20 +1127,20 @@ function CalendarPage() {
 
               {/* Description */}
               <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#1A1A2E', fontSize: '14px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#1A1A2E', fontSize: '13px' }}>
                   Description (optionnel)
                 </label>
                 <textarea
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
                   placeholder="Décrivez votre événement..."
-                  rows={3}
+                  rows={2}
                   style={{
                     width: '100%',
-                    padding: '16px',
+                    padding: '12px',
                     border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    fontSize: '16px',
+                    borderRadius: '10px',
+                    fontSize: '14px',
                     outline: 'none',
                     resize: 'none',
                     boxSizing: 'border-box',
@@ -578,19 +1150,19 @@ function CalendarPage() {
               </div>
 
               {/* Buttons */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button
                   type="button"
                   onClick={closeModal}
                   style={{
                     flex: 1,
-                    padding: '16px',
-                    backgroundColor: '#F5F5F7',
-                    border: 'none',
-                    borderRadius: '12px',
+                    padding: '12px',
+                    backgroundColor: 'white',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '10px',
                     color: '#666',
                     fontWeight: '600',
-                    fontSize: '16px',
+                    fontSize: '14px',
                     cursor: 'pointer'
                   }}
                 >
@@ -602,19 +1174,19 @@ function CalendarPage() {
                   disabled={!newTitle.trim() || !newDate || saving}
                   style={{
                     flex: 1,
-                    padding: '16px',
+                    padding: '12px',
                     background: newTitle.trim() && newDate && !saving
-                      ? 'linear-gradient(135deg, #FF6B35, #FF8F5E)' 
+                      ? 'linear-gradient(135deg, #c84b31, #e06b4f)'
                       : '#E5E7EB',
                     border: 'none',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     color: newTitle.trim() && newDate && !saving ? 'white' : '#999',
                     fontWeight: '700',
-                    fontSize: '16px',
+                    fontSize: '14px',
                     cursor: newTitle.trim() && newDate && !saving ? 'pointer' : 'not-allowed'
                   }}
                 >
-                  {saving ? '⏳ Ajout...' : '✓ Ajouter'}
+                  {saving ? <><LoaderIcon size={14} color="#999" /> Ajout...</> : <><CheckIcon size={14} color="white" /> Ajouter</>}
                 </button>
               </div>
             </div>
@@ -661,11 +1233,11 @@ function CalendarPage() {
                   ? `linear-gradient(135deg, ${
                       selectedEvent.event_type === 'ferie' ? '#3B82F6' :
                       selectedEvent.event_type === 'commercial' ? '#F59E0B' :
-                      selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
+                      selectedEvent.event_type === 'fete' ? '#2d5a45' : '#10B981'
                     }, ${
                       selectedEvent.event_type === 'ferie' ? '#60A5FA' :
                       selectedEvent.event_type === 'commercial' ? '#FBBF24' :
-                      selectedEvent.event_type === 'fete' ? '#A78BFA' : '#34D399'
+                      selectedEvent.event_type === 'fete' ? '#3d7a5f' : '#34D399'
                     })`
                   : `linear-gradient(135deg, ${getEventColor(selectedEvent.event_type)}, ${getEventColor(selectedEvent.event_type)}99)`,
                 borderRadius: '10px',
@@ -718,13 +1290,13 @@ function CalendarPage() {
                 ? `${
                     selectedEvent.event_type === 'ferie' ? '#3B82F6' :
                     selectedEvent.event_type === 'commercial' ? '#F59E0B' :
-                    selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981'
+                    selectedEvent.event_type === 'fete' ? '#2d5a45' : '#10B981'
                   }15`
                 : `${getEventColor(selectedEvent.event_type)}15`,
               color: selectedEvent.isAuto 
                 ? (selectedEvent.event_type === 'ferie' ? '#3B82F6' :
                    selectedEvent.event_type === 'commercial' ? '#F59E0B' :
-                   selectedEvent.event_type === 'fete' ? '#8B5CF6' : '#10B981')
+                   selectedEvent.event_type === 'fete' ? '#2d5a45' : '#10B981')
                 : getEventColor(selectedEvent.event_type),
               borderRadius: '50px',
               fontSize: '12px',
@@ -745,29 +1317,178 @@ function CalendarPage() {
               </p>
             )}
 
-            {/* Bouton principal - Créer un post */}
+            {/* Post planifié associé */}
+            {selectedEvent.post_image_url && (
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                borderRadius: '12px',
+                padding: '12px',
+                marginBottom: '16px',
+                border: '1px solid #e0e0e0'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <ImageIcon size={16} color="#1a3a5c" />
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1a3a5c' }}>Post planifié</span>
+                </div>
+                <img
+                  src={selectedEvent.post_image_url}
+                  alt="Post planifié"
+                  style={{
+                    width: '100%',
+                    borderRadius: '8px',
+                    marginBottom: '10px',
+                    maxHeight: '200px',
+                    objectFit: 'cover'
+                  }}
+                />
+                {selectedEvent.post_text && (
+                  <p style={{
+                    fontSize: '11px',
+                    color: '#666',
+                    margin: '0 0 10px 0',
+                    padding: '8px',
+                    backgroundColor: 'white',
+                    borderRadius: '6px',
+                    lineHeight: '1.4'
+                  }}>
+                    {selectedEvent.post_text.substring(0, 150)}...
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = selectedEvent.post_image_url!;
+                      link.download = `post-planifie.png`;
+                      link.click();
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      border: '1px solid #ddd',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <DownloadIcon size={12} />
+                    Image
+                  </button>
+                  {selectedEvent.post_text && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedEvent.post_text || '');
+                        alert('Texte copié !');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        backgroundColor: '#1a3a5c',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <CopyIcon size={12} />
+                      Texte
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bouton principal - Créer un post (seulement si pas de post planifié) */}
+            {!selectedEvent.post_id && (
+              <button
+                onClick={async () => {
+                  // Construire les paramètres URL avec les infos de l'événement
+                  const params = new URLSearchParams();
+                  params.set('title', selectedEvent.title);
+                  params.set('type', selectedEvent.event_type);
+                  if (selectedEvent.description) {
+                    params.set('description', selectedEvent.description);
+                  }
+                  // Date au format ISO pour CreatePost
+                  const isoDate = selectedEvent.start.toISOString().split('T')[0];
+                  params.set('date', isoDate);
+                  params.set('isAuto', selectedEvent.isAuto ? 'true' : 'false');
+
+                  // Si c'est un événement auto (suggéré), on doit d'abord le créer en base
+                  if (selectedEvent.isAuto && user) {
+                    try {
+                      const { data: newEvent, error } = await supabase
+                        .from('events')
+                        .insert([{
+                          user_id: user.id,
+                          title: selectedEvent.title,
+                          event_date: isoDate,
+                          event_type: selectedEvent.event_type,
+                          description: selectedEvent.description || null,
+                          is_auto: false // Une fois créé, il devient un événement manuel
+                        }])
+                        .select()
+                        .single();
+
+                      if (error) {
+                        console.error('Erreur création événement:', error);
+                        alert('Erreur lors de la création de l\'événement');
+                        return;
+                      }
+
+                      if (newEvent) {
+                        params.set('eventId', newEvent.id);
+                      }
+                    } catch (err) {
+                      console.error('Erreur:', err);
+                      alert('Erreur lors de la création de l\'événement');
+                      return;
+                    }
+                  } else if (selectedEvent.id) {
+                    // Événement manuel existant
+                    params.set('eventId', selectedEvent.id);
+                  }
+
+                  closeEventModal();
+                  navigate(`/create?${params.toString()}`);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, #c84b31, #e06b4f)',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  marginBottom: '12px',
+                  boxShadow: '0 4px 12px rgba(200, 75, 49, 0.25)'
+                }}
+              >
+                <SparklesIcon size={14} color="white" /> Créer un post
+              </button>
+            )}
+
+            {/* Bouton exporter vers calendrier */}
             <button
-              onClick={() => {
-                closeEventModal();
-                // Construire les paramètres URL avec les infos de l'événement
-                const params = new URLSearchParams();
-                params.set('title', selectedEvent.title);
-                params.set('type', selectedEvent.event_type);
-                if (selectedEvent.description) {
-                  params.set('description', selectedEvent.description);
-                }
-                params.set('date', selectedEvent.start.toLocaleDateString('fr-FR', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long'
-                }));
-                params.set('isAuto', selectedEvent.isAuto ? 'true' : 'false');
-                navigate(`/create?${params.toString()}`);
-              }}
+              onClick={() => handleExportSingleEvent(selectedEvent)}
               style={{
                 width: '100%',
                 padding: '12px',
-                background: 'linear-gradient(135deg, #FF8A65, #FFB088)',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
                 border: 'none',
                 borderRadius: '10px',
                 color: 'white',
@@ -775,16 +1496,20 @@ function CalendarPage() {
                 cursor: 'pointer',
                 fontSize: '14px',
                 marginBottom: '12px',
-                boxShadow: '0 4px 12px rgba(255, 138, 101, 0.25)'
+                boxShadow: '0 4px 12px rgba(26, 58, 92, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
-              ✨ Créer un post
+              <DownloadIcon size={14} color="white" /> Ajouter à mon calendrier
             </button>
 
             {/* Options Modifier / Supprimer */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
               gap: '16px',
               paddingTop: '8px',
               borderTop: '1px solid #F0F0F0'
@@ -810,20 +1535,25 @@ function CalendarPage() {
                     ✏️ Modifier
                   </button>
                   <button
-                    onClick={async () => {
-                      if (confirm('Supprimer cet événement ?')) {
-                        try {
-                          const { error } = await supabase
-                            .from('events')
-                            .delete()
-                            .eq('id', selectedEvent.id);
-                          if (error) throw error;
-                          setUserEvents(prev => prev.filter(e => e.id !== selectedEvent.id));
-                          closeEventModal();
-                        } catch (err: any) {
-                          alert('Erreur: ' + err.message);
+                    onClick={() => {
+                      showConfirm(
+                        'Supprimer l\'événement',
+                        `Voulez-vous vraiment supprimer "${selectedEvent.title}" ?`,
+                        async () => {
+                          try {
+                            const { error } = await supabase
+                              .from('events')
+                              .delete()
+                              .eq('id', selectedEvent.id);
+                            if (error) throw error;
+                            setUserEvents(prev => prev.filter(e => e.id !== selectedEvent.id));
+                            closeEventModal();
+                            closeConfirmModal();
+                          } catch (err: any) {
+                            alert('Erreur: ' + err.message);
+                          }
                         }
-                      }
+                      );
                     }}
                     style={{
                       background: 'none',
@@ -841,10 +1571,151 @@ function CalendarPage() {
                 </>
               )}
               {selectedEvent.isAuto && (
-                <span style={{ color: '#999', fontSize: '12px' }}>
-                  📅 Événement suggéré automatiquement
-                </span>
+                <button
+                  onClick={() => {
+                    showConfirm(
+                      'Masquer la suggestion',
+                      `Masquer "${selectedEvent.title}" ? Il n'apparaîtra plus dans votre calendrier.`,
+                      () => {
+                        hideEvent(selectedEvent);
+                        closeConfirmModal();
+                      }
+                    );
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#EF4444',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🚫 Masquer cette suggestion
+                </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            backdropFilter: 'blur(4px)'
+          }}
+          onClick={closeConfirmModal}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFF8E7',
+              borderRadius: '20px',
+              padding: '0',
+              width: '100%',
+              maxWidth: '340px',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+              border: '3px solid #c84b31',
+              overflow: 'hidden',
+              fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #c84b31, #e05a40)',
+              padding: '18px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '18px'
+              }}>
+                ⚠️
+              </div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '700',
+                color: 'white',
+                margin: 0,
+                fontFamily: "'Plus Jakarta Sans', sans-serif"
+              }}>
+                {confirmModal.title}
+              </h3>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '24px' }}>
+              <p style={{
+                fontSize: '15px',
+                color: '#1A1A2E',
+                margin: '0 0 24px 0',
+                lineHeight: '1.5',
+                textAlign: 'center'
+              }}>
+                {confirmModal.message}
+              </p>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={closeConfirmModal}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    backgroundColor: 'white',
+                    border: '2px solid #E5E7EB',
+                    borderRadius: '12px',
+                    color: '#666',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #c84b31, #e05a40)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    color: 'white',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    boxShadow: '0 4px 12px rgba(200, 75, 49, 0.3)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Confirmer
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -853,113 +1724,202 @@ function CalendarPage() {
       {/* CSS for Calendar */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        
+
         .rbc-calendar {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
         }
-        
+
         .rbc-toolbar {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 20px;
-          padding: 16px;
-          background: linear-gradient(135deg, #FFF5F2, #F0F7FF);
-          border-radius: 16px;
-          gap: 12px;
+          padding: 14px 20px;
+          background: linear-gradient(135deg, #ffffff, #fafbfc);
+          border-radius: 20px;
+          gap: 16px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+          border: 1px solid rgba(0,0,0,0.04);
         }
-        
+
+        .rbc-btn-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
         .rbc-toolbar button {
-          background: white;
-          border: 2px solid #E5E7EB;
-          border-radius: 10px;
-          padding: 10px 18px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-family: inherit;
-          font-size: 14px;
-          color: #1A1A2E;
-        }
-        
-        .rbc-toolbar button:hover {
-          background-color: #FFF5F2;
-          border-color: #FF6B35;
-          color: #FF6B35;
-        }
-        
-        .rbc-toolbar button.rbc-active {
-          background: linear-gradient(135deg, #FF6B35, #FF8F5E);
-          border-color: #FF6B35;
-          color: white;
-        }
-        
-        .rbc-toolbar-label {
-          font-weight: 700;
-          font-size: 18px;
-          color: #1A1A2E;
-          text-transform: capitalize;
-        }
-        
-        .rbc-header {
-          padding: 12px;
-          font-weight: 600;
-          color: #1A1A2E;
-          background: linear-gradient(135deg, #FFF5F2, #F0F7FF);
-          border-bottom: 2px solid #FFE5DC;
-        }
-        
-        .rbc-month-view {
+          background: #F5F5F7;
           border: none;
           border-radius: 12px;
-          overflow: hidden;
+          padding: 10px 18px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          font-family: inherit;
+          font-size: 13px;
+          color: #555;
         }
-        
+
+        /* Boutons de navigation (Précédent / Suivant) */
+        .rbc-btn-group:first-child button {
+          background: linear-gradient(145deg, #1a3a5c, #2d5a7c) !important;
+          color: white !important;
+          padding: 16px 28px !important;
+          border-radius: 14px !important;
+          font-weight: 700 !important;
+          font-size: 16px !important;
+          box-shadow: 0 4px 15px rgba(26, 58, 92, 0.3) !important;
+          border: none !important;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap !important;
+          overflow: visible !important;
+          text-overflow: clip !important;
+          min-width: fit-content !important;
+          width: auto !important;
+          max-width: none !important;
+        }
+
+        /* Bouton Aujourd'hui en orange */
+        .rbc-toolbar-label + .rbc-btn-group button:first-child,
+        .rbc-btn-group:first-child button:first-child {
+          background: linear-gradient(145deg, #c84b31, #e05a40) !important;
+          box-shadow: 0 4px 15px rgba(200, 75, 49, 0.35) !important;
+        }
+
+        .rbc-btn-group:first-child button:first-child:hover {
+          box-shadow: 0 6px 20px rgba(200, 75, 49, 0.45) !important;
+        }
+
+        .rbc-btn-group:first-child button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(26, 58, 92, 0.4) !important;
+        }
+
+        .rbc-btn-group:first-child button:active {
+          transform: translateY(0);
+        }
+
+        /* Boutons de vue (Mois, Semaine, Jour, Agenda) */
+        .rbc-btn-group:last-child {
+          background: #FFF8E7;
+          border: 2px solid #c84b31;
+          padding: 5px;
+          border-radius: 14px;
+          gap: 3px;
+        }
+
+        .rbc-btn-group:last-child button {
+          background: transparent;
+          border-radius: 10px;
+          padding: 10px 16px;
+          font-size: 13px;
+          color: #666;
+          font-weight: 500;
+        }
+
+        .rbc-btn-group:last-child button:hover {
+          background: rgba(255,255,255,0.5);
+          color: #333;
+        }
+
+        .rbc-toolbar button.rbc-active {
+          background: white !important;
+          color: #1A1A2E !important;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+          font-weight: 600;
+        }
+
+        .rbc-toolbar-label {
+          font-weight: 800;
+          font-size: 24px;
+          color: #1A1A2E;
+          text-transform: capitalize;
+          letter-spacing: -0.5px;
+          flex: 1;
+          text-align: center;
+        }
+
+        .rbc-header {
+          padding: 14px 12px;
+          font-weight: 600;
+          color: #1A1A2E;
+          background: linear-gradient(180deg, #FFF8E7, #FFF5E0);
+          border-bottom: 2px solid #f0e4d6;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .rbc-month-view {
+          border: none;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+
         .rbc-month-row {
           border-color: #F0F0F5;
         }
-        
+
         .rbc-day-bg {
           border-color: #F0F0F5;
+          transition: background 0.2s ease;
         }
-        
+
+        .rbc-day-bg:hover {
+          background: rgba(200, 75, 49, 0.03);
+        }
+
         .rbc-today {
-          background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(255, 107, 53, 0.05));
+          background: linear-gradient(135deg, rgba(200, 75, 49, 0.12), rgba(200, 75, 49, 0.06)) !important;
         }
-        
+
         .rbc-date-cell {
-          padding: 8px;
-          font-weight: 500;
+          padding: 10px 8px 4px;
+          font-weight: 600;
+          font-size: 13px;
         }
-        
+
+        .rbc-date-cell.rbc-now {
+          font-weight: 800;
+          color: #c84b31;
+        }
+
         .rbc-off-range-bg {
           background-color: #FAFBFC;
         }
-        
+
         .rbc-off-range {
           color: #CCC;
         }
-        
+
         .rbc-event {
           border: none;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
+        .rbc-event:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
         .rbc-event:focus {
           outline: none;
         }
-        
+
         .rbc-show-more {
-          color: #FF6B35;
-          font-weight: 600;
+          color: #c84b31;
+          font-weight: 700;
+          font-size: 11px;
+          padding: 2px 6px;
+          background: rgba(200, 75, 49, 0.1);
+          border-radius: 4px;
         }
-        
-        .rbc-btn-group {
-          display: flex;
-          gap: 4px;
-        }
-        
+
         /* MOBILE RESPONSIVE */
         @media (max-width: 768px) {
           /* Header */
@@ -967,60 +1927,80 @@ function CalendarPage() {
             padding: 12px 16px !important;
             flex-wrap: wrap !important;
           }
-          
+
           /* Cacher nav sur mobile */
           header nav {
             display: none !important;
           }
-          
+
           /* Main */
           main {
             padding: 16px !important;
           }
-          
+
           /* Titre */
           main h1 {
             font-size: 24px !important;
           }
-          
+
           /* Cacher légende sur mobile */
           .event-legend {
             display: none !important;
           }
-          
+
           /* Calendar container */
           main > div:last-of-type {
             padding: 12px !important;
           }
-          
-          /* Toolbar calendar */
+
+          /* Toolbar calendar - disposition mobile */
           .rbc-toolbar {
-            flex-direction: column !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
             gap: 12px !important;
-            padding: 12px !important;
+            padding: 14px !important;
           }
-          
+
           .rbc-toolbar-label {
-            font-size: 16px !important;
+            font-size: 20px !important;
             order: -1 !important;
+            width: 100% !important;
+            margin-bottom: 8px !important;
           }
-          
-          .rbc-toolbar button {
-            padding: 8px 10px !important;
+
+          .rbc-btn-group:first-child {
+            order: 0 !important;
+          }
+
+          .rbc-btn-group:last-child {
+            order: 1 !important;
+            width: 100% !important;
+            justify-content: center !important;
+          }
+
+          /* Boutons nav mobile */
+          .rbc-btn-group:first-child button {
+            padding: 10px 16px !important;
+            font-size: 12px !important;
+          }
+
+          /* Boutons vue mobile */
+          .rbc-btn-group:last-child button {
+            padding: 8px 12px !important;
             font-size: 11px !important;
           }
-          
+
           /* Calendar hauteur réduite */
           .rbc-calendar {
             height: 450px !important;
           }
-          
+
           /* Events plus petits */
           .rbc-event {
             font-size: 10px !important;
             padding: 1px 3px !important;
           }
-          
+
           /* Modal */
           .event-modal > div {
             margin: 16px !important;
@@ -1028,34 +2008,44 @@ function CalendarPage() {
             max-height: 90vh !important;
             overflow-y: auto !important;
           }
-          
+
           /* Event types dans modal */
           .event-types-selector {
             display: grid !important;
             grid-template-columns: 1fr 1fr !important;
             gap: 8px !important;
           }
-          
+
           .event-types-selector button {
             padding: 8px !important;
             font-size: 11px !important;
           }
         }
-        
+
         @media (max-width: 480px) {
-          .rbc-toolbar button {
-            padding: 6px 8px !important;
+          .rbc-toolbar-label {
+            font-size: 18px !important;
+          }
+
+          .rbc-btn-group:first-child button {
+            padding: 8px 12px !important;
+            font-size: 11px !important;
+          }
+
+          .rbc-btn-group:last-child button {
+            padding: 6px 10px !important;
             font-size: 10px !important;
           }
-          
+
           .rbc-header {
-            font-size: 11px !important;
-            padding: 6px !important;
+            font-size: 10px !important;
+            padding: 8px 4px !important;
+            letter-spacing: 0 !important;
           }
-          
+
           .rbc-date-cell {
             font-size: 11px !important;
-            padding: 4px !important;
+            padding: 6px 4px 2px !important;
           }
         }
       `}</style>

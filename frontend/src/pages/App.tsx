@@ -13,8 +13,8 @@ function App() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#FAFBFC',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      backgroundColor: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: 'hidden',
       width: '100%',
       maxWidth: '100vw'
@@ -23,7 +23,7 @@ function App() {
       {/* Navigation */}
       <nav style={{
         padding: '12px 16px',
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         backdropFilter: 'blur(20px)',
         boxShadow: '0 2px 20px rgba(0,0,0,0.08)',
         display: 'flex',
@@ -33,19 +33,11 @@ function App() {
         top: 0,
         zIndex: 1000
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <img 
-            src={logoAina} 
-            alt="AiNa" 
-            style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-          />
-          <span style={{ 
-            fontSize: '22px', 
-            fontWeight: '800',
-            fontFamily: "'Poppins', sans-serif",
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={{
+            fontSize: '28px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31'
           }}>
             AiNa
           </span>
@@ -457,9 +449,8 @@ function App() {
         backgroundColor: '#1A1A2E',
         textAlign: 'center'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '12px' }}>
-          <img src={logoAina} alt="AiNa" style={{ width: '32px', height: '32px' }} />
-          <span style={{ color: 'white', fontWeight: '700', fontSize: '18px', fontFamily: "'Poppins', sans-serif" }}>AiNa</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+          <span style={{ color: '#FFF8E7', fontSize: '24px', fontFamily: "'Titan One', cursive" }}>AiNa</span>
         </div>
         <p style={{ color: '#888', fontSize: '12px' }}>
           © 2024 AiNa - Votre Community Manager IA

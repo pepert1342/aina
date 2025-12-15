@@ -1,0 +1,9 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Titan+One&amp;display=swap');
+    </style>
+  </defs>
+  <rect width="512" height="512" rx="80" ry="80" fill="#F4E4C9"/>
+  <text x="256" y="300" text-anchor="middle" font-family="'Titan One', cursive" font-size="160" fill="#C84B31">AiNa</text>
+</svg>

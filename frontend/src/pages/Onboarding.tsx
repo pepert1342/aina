@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generateImage } from '../gemini';
-import logoAina from '/logo-aina.png';
 import AddressAutocomplete from '../components/AddressAutocomplete';
 
 function Onboarding() {
@@ -53,6 +52,9 @@ function Onboarding() {
     });
   }, [navigate]);
 
+  // Champ pour type personnalisé (quand "Autre" est sélectionné)
+  const [customBusinessType, setCustomBusinessType] = useState('');
+
   const businessTypes = [
     { value: 'Restaurant', icon: '🍽️' },
     { value: 'Bar', icon: '🍸' },
@@ -60,6 +62,7 @@ function Onboarding() {
     { value: 'Coiffeur', icon: '💇' },
     { value: 'Esthétique', icon: '💅' },
     { value: 'Boutique', icon: '🛍️' },
+    { value: 'Agence immobilière', icon: '🏠' },
     { value: 'Autre', icon: '🏪' }
   ];
 
@@ -361,7 +364,7 @@ function Onboarding() {
         .insert([{
           user_id: userId,
           business_name: businessName,
-          business_type: businessType,
+          business_type: getFinalBusinessType(),
           address: address || null,
           platforms: platforms.length > 0 ? platforms : null,
           tone: tone || null,
@@ -380,9 +383,21 @@ function Onboarding() {
     }
   };
 
+  // Obtenir le type de commerce final (personnalisé si "Autre")
+  const getFinalBusinessType = () => {
+    if (businessType === 'Autre' && customBusinessType.trim()) {
+      return customBusinessType.trim();
+    }
+    return businessType;
+  };
+
   const canContinue = () => {
     switch (currentStep) {
-      case 1: return businessName.trim() !== '' && businessType !== '';
+      case 1:
+        if (businessName.trim() === '' || businessType === '') return false;
+        // Si "Autre" est sélectionné, vérifier que le champ personnalisé est rempli
+        if (businessType === 'Autre' && !customBusinessType.trim()) return false;
+        return true;
       case 2: return true;
       case 3: return tone !== '' && platforms.length > 0;
       case 4: return isCalibrated && selectedImageIndex !== null;
@@ -407,15 +422,15 @@ function Onboarding() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #F0F7FF 0%, #FFFFFF 50%, #FFF5F2 100%)',
-      fontFamily: "'Inter', sans-serif",
+      background: '#FFF8E7',
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
       overflowX: 'hidden',
       width: '100%',
       maxWidth: '100vw'
     }}>
       {/* Header */}
       <header style={{
-        backgroundColor: 'rgba(255,255,255,0.95)',
+        backgroundColor: 'rgba(255,248,231,0.95)',
         borderBottom: '1px solid #E5E7EB',
         padding: '10px 16px',
         display: 'flex',
@@ -424,20 +439,11 @@ function Onboarding() {
         width: '100%',
         boxSizing: 'border-box'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <img
-            src={logoAina}
-            alt="AiNa"
-            style={{ width: '44px', height: '44px', objectFit: 'contain' }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <span style={{
-            fontSize: '22px',
-            fontWeight: '800',
-            fontFamily: "'Poppins', sans-serif",
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
+            fontSize: '28px',
+            fontFamily: "'Titan One', cursive",
+            color: '#C84B31'
           }}>AiNa</span>
         </div>
         <span style={{ fontSize: '13px', color: '#888' }}>Configuration</span>
@@ -468,7 +474,7 @@ function Onboarding() {
           <div style={{
             width: `${(currentStep / totalSteps) * 100}%`,
             height: '100%',
-            background: 'linear-gradient(135deg, #FF8A65, #004E89)',
+            background: 'linear-gradient(135deg, #c84b31, #1a3a5c)',
             borderRadius: '3px',
             transition: 'width 0.3s ease'
           }} />
@@ -487,7 +493,7 @@ function Onboarding() {
                 width: '28px',
                 height: '28px',
                 borderRadius: '50%',
-                backgroundColor: step < currentStep ? '#10B981' : step === currentStep ? '#FF8A65' : '#E5E7EB',
+                backgroundColor: step < currentStep ? '#10B981' : step === currentStep ? '#c84b31' : '#E5E7EB',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -551,12 +557,17 @@ function Onboarding() {
                   {businessTypes.map(type => (
                     <button
                       key={type.value}
-                      onClick={() => setBusinessType(type.value)}
+                      onClick={() => {
+                        setBusinessType(type.value);
+                        if (type.value !== 'Autre') {
+                          setCustomBusinessType('');
+                        }
+                      }}
                       style={{
                         padding: '14px',
                         borderRadius: '12px',
-                        border: `2px solid ${businessType === type.value ? '#FF8A65' : '#E5E7EB'}`,
-                        backgroundColor: businessType === type.value ? '#FFF5F2' : 'white',
+                        border: `2px solid ${businessType === type.value ? '#c84b31' : '#E5E7EB'}`,
+                        backgroundColor: businessType === type.value ? '#FFF8E7' : 'white',
                         cursor: 'pointer',
                         textAlign: 'center',
                         transition: 'all 0.2s'
@@ -567,6 +578,30 @@ function Onboarding() {
                     </button>
                   ))}
                 </div>
+
+                {/* Champ personnalisé pour "Autre" */}
+                {businessType === 'Autre' && (
+                  <div style={{ marginTop: '12px' }}>
+                    <input
+                      type="text"
+                      value={customBusinessType}
+                      onChange={(e) => setCustomBusinessType(e.target.value)}
+                      placeholder="Précisez votre type de commerce..."
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        border: '2px solid #c84b31',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        boxSizing: 'border-box',
+                        backgroundColor: '#FFF8E7'
+                      }}
+                    />
+                    <p style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
+                      Ex: Fleuriste, Garage auto, Cabinet médical...
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -587,6 +622,38 @@ function Onboarding() {
                 <p style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
                   Sera utilisé pour suggérer des événements locaux
                 </p>
+              </div>
+
+              {/* Avertissement choix définitif */}
+              <div style={{
+                marginTop: '24px',
+                padding: '14px 16px',
+                backgroundColor: '#FEF3C7',
+                border: '2px solid #F59E0B',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '20px' }}>⚠️</span>
+                <div>
+                  <p style={{
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#92400E',
+                    margin: '0 0 4px 0'
+                  }}>
+                    Choix définitif
+                  </p>
+                  <p style={{
+                    fontSize: '12px',
+                    color: '#B45309',
+                    margin: 0,
+                    lineHeight: '1.5'
+                  }}>
+                    Le nom et le type d'établissement ne pourront plus être modifiés après cette étape. Assurez-vous qu'ils sont corrects.
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -787,8 +854,8 @@ function Onboarding() {
                       style={{
                         padding: '16px',
                         borderRadius: '12px',
-                        border: `2px solid ${tone === t.value ? '#FF8A65' : '#E5E7EB'}`,
-                        backgroundColor: tone === t.value ? '#FFF5F2' : 'white',
+                        border: `2px solid ${tone === t.value ? '#c84b31' : '#E5E7EB'}`,
+                        backgroundColor: tone === t.value ? '#FFF8E7' : 'white',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -803,7 +870,7 @@ function Onboarding() {
                         <div style={{ fontSize: '12px', color: '#888' }}>{t.desc}</div>
                       </div>
                       {tone === t.value && (
-                        <span style={{ marginLeft: 'auto', color: '#FF8A65', fontWeight: '600' }}>✓</span>
+                        <span style={{ marginLeft: 'auto', color: '#c84b31', fontWeight: '600' }}>✓</span>
                       )}
                     </button>
                   ))}
@@ -866,8 +933,8 @@ function Onboarding() {
                           style={{
                             padding: '8px 12px',
                             borderRadius: '20px',
-                            border: postDescription === suggestion.text ? '2px solid #FF8A65' : '1px solid #E5E7EB',
-                            backgroundColor: postDescription === suggestion.text ? '#FFF5F2' : 'white',
+                            border: postDescription === suggestion.text ? '2px solid #c84b31' : '1px solid #E5E7EB',
+                            backgroundColor: postDescription === suggestion.text ? '#FFF8E7' : 'white',
                             cursor: 'pointer',
                             fontSize: '12px',
                             display: 'flex',
@@ -914,11 +981,11 @@ function Onboarding() {
                   {(logo || photos.length > 0 || keywords.length > 0) && (
                     <div style={{
                       padding: '12px',
-                      backgroundColor: '#F0F7FF',
+                      backgroundColor: '#e8f4fd',
                       borderRadius: '10px',
                       marginBottom: '16px'
                     }}>
-                      <p style={{ fontSize: '12px', color: '#004E89', fontWeight: '600', marginBottom: '6px' }}>
+                      <p style={{ fontSize: '12px', color: '#1a3a5c', fontWeight: '600', marginBottom: '6px' }}>
                         L'IA utilisera vos éléments :
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
@@ -948,7 +1015,7 @@ function Onboarding() {
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background: postDescription.trim() ? 'linear-gradient(135deg, #FF8A65, #FFB088)' : '#E5E7EB',
+                      background: postDescription.trim() ? 'linear-gradient(135deg, #c84b31, #e06b4f)' : '#E5E7EB',
                       border: 'none',
                       borderRadius: '12px',
                       color: postDescription.trim() ? 'white' : '#999',
@@ -959,7 +1026,7 @@ function Onboarding() {
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '8px',
-                      boxShadow: postDescription.trim() ? '0 4px 15px rgba(255, 138, 101, 0.3)' : 'none'
+                      boxShadow: postDescription.trim() ? '0 4px 15px rgba(200, 75, 49, 0.3)' : 'none'
                     }}
                   >
                     🎨 Générer 4 visuels
@@ -1001,7 +1068,7 @@ function Onboarding() {
                     <div style={{
                       width: `${(generatingIndex / 4) * 100}%`,
                       height: '100%',
-                      background: 'linear-gradient(135deg, #FF8A65, #004E89)',
+                      background: 'linear-gradient(135deg, #c84b31, #1a3a5c)',
                       borderRadius: '3px',
                       transition: 'width 0.5s ease'
                     }} />
@@ -1223,7 +1290,7 @@ function Onboarding() {
                   <div>
                     <div style={{ fontSize: '12px', color: '#888' }}>Commerce</div>
                     <div style={{ fontWeight: '600', color: '#1A1A2E' }}>{businessName}</div>
-                    <div style={{ fontSize: '12px', color: '#666' }}>{businessType}</div>
+                    <div style={{ fontSize: '12px', color: '#666' }}>{getFinalBusinessType()}</div>
                   </div>
                 </div>
 
@@ -1338,14 +1405,14 @@ function Onboarding() {
           style={{
             flex: currentStep > 1 ? 2 : 1,
             padding: '14px',
-            background: canContinue() && !loading ? 'linear-gradient(135deg, #FF8A65, #FFB088)' : '#E5E7EB',
+            background: canContinue() && !loading ? 'linear-gradient(135deg, #c84b31, #e06b4f)' : '#E5E7EB',
             border: 'none',
             borderRadius: '12px',
             color: canContinue() && !loading ? 'white' : '#999',
             fontWeight: '700',
             cursor: canContinue() && !loading ? 'pointer' : 'not-allowed',
             fontSize: '15px',
-            boxShadow: canContinue() && !loading ? '0 4px 15px rgba(255, 138, 101, 0.3)' : 'none'
+            boxShadow: canContinue() && !loading ? '0 4px 15px rgba(200, 75, 49, 0.3)' : 'none'
           }}
         >
           {loading ? '⏳ Création...' : currentStep === totalSteps ? '🚀 Commencer !' : 'Continuer →'}
