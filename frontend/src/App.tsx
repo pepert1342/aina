@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ZapIcon, PaletteIcon, CalendarIcon, SparklesIcon, ArrowRightIcon } from './components/Icons';
 import { useNavigate } from 'react-router-dom';
 
 function App() {
@@ -135,11 +136,15 @@ function App() {
               fontWeight: '700',
               fontSize: '16px',
               cursor: 'pointer',
-              boxShadow: '0 8px 30px rgba(200, 75, 49, 0.4)'
-            }}
-          >
-            Commencer
-          </button>
+              boxShadow: '0 8px 30px rgba(200, 75, 49, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}>
+              <SparklesIcon size={18} color="white" />
+              Commencer
+            </button>
         </div>
 
         {/* 3 Étapes */}
@@ -242,8 +247,7 @@ function App() {
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '10px',
-              fontSize: '18px'
-            }}></div>
+              }}><ZapIcon size={20} color='white' /></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Génération instantanée
             </h3>
@@ -268,8 +272,7 @@ function App() {
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '10px',
-              fontSize: '18px'
-            }}></div>
+              }}><PaletteIcon size={20} color='white' /></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Design personnalisé
             </h3>
@@ -294,8 +297,7 @@ function App() {
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: '10px',
-              fontSize: '18px'
-            }}></div>
+              }}><CalendarIcon size={20} color='white' /></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Calendrier intelligent
             </h3>
@@ -340,11 +342,15 @@ function App() {
             fontWeight: '700',
             fontSize: '16px',
             cursor: 'pointer',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.2)'
-          }}
-        >
-          Démarrer maintenant
-        </button>
+            boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}>
+            Démarrer maintenant
+            <ArrowRightIcon size={18} color="#1a3a5c" />
+          </button>
       </section>
 
       {/* Réseaux sociaux */}
