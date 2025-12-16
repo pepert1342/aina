@@ -85,21 +85,6 @@ function App() {
         transform: isVisible ? 'translateY(0)' : 'translateY(20px)',
         transition: 'all 0.6s ease-out'
       }}>
-        {/* Badge */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <span style={{
-            display: 'inline-block',
-            padding: '8px 16px',
-            background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
-            borderRadius: '50px',
-            color: 'white',
-            fontSize: '12px',
-            fontWeight: '600'
-          }}>
-            🤖 Intelligence Artificielle
-          </span>
-        </div>
-
         {/* Titre */}
         <h1 style={{
           fontSize: '28px',
@@ -153,7 +138,7 @@ function App() {
               boxShadow: '0 8px 30px rgba(200, 75, 49, 0.4)'
             }}
           >
-            ✨ Commencer
+            Commencer
           </button>
         </div>
 
@@ -258,7 +243,7 @@ function App() {
               justifyContent: 'center',
               marginBottom: '10px',
               fontSize: '18px'
-            }}>⚡</div>
+            }}></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Génération instantanée
             </h3>
@@ -284,7 +269,7 @@ function App() {
               justifyContent: 'center',
               marginBottom: '10px',
               fontSize: '18px'
-            }}>🎨</div>
+            }}></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Design personnalisé
             </h3>
@@ -310,7 +295,7 @@ function App() {
               justifyContent: 'center',
               marginBottom: '10px',
               fontSize: '18px'
-            }}>📅</div>
+            }}></div>
             <h3 style={{ fontWeight: '700', fontSize: '15px', color: '#1A1A2E', marginBottom: '4px' }}>
               Calendrier intelligent
             </h3>
@@ -358,7 +343,7 @@ function App() {
             boxShadow: '0 8px 30px rgba(0,0,0,0.2)'
           }}
         >
-          🚀 Démarrer maintenant
+          Démarrer maintenant
         </button>
       </section>
 
