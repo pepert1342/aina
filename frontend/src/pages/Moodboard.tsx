@@ -5,7 +5,9 @@ import AddressAutocomplete from '../components/AddressAutocomplete';
 import {
   HomeIcon, SparklesIcon, CheckIcon, LoaderIcon, UploadIcon, SaveIcon,
   TagIcon, ImageIcon, CameraIcon, PlusIcon, LockIcon, MailIcon, StoreIcon, MapPinIcon,
-  DiamondIcon, LogoutIcon, CalendarIcon, PaletteIcon, LightbulbIcon, TrendingUpIcon
+  DiamondIcon, LogoutIcon, CalendarIcon, PaletteIcon, LightbulbIcon, TrendingUpIcon,
+  UtensilsIcon, WineIcon, ScissorsIcon, SprayCanIcon, ShoppingBagIcon, BuildingIcon,
+  BriefcaseIcon, UsersIcon, PartyPopperIcon, SmileIcon
 } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
@@ -80,24 +82,23 @@ function Moodboard() {
   // Champ pour type personnalisé (quand "Autre" est sélectionné)
   const [customBusinessType, setCustomBusinessType] = useState('');
 
-  // On garde les emojis pour Type et Ton comme demandé
   const businessTypes = [
-    { value: 'Restaurant', icon: '🍽️' },
-    { value: 'Bar', icon: '🍸' },
-    { value: 'Boulangerie', icon: '🥐' },
-    { value: 'Coiffeur', icon: '💇' },
-    { value: 'Esthétique', icon: '💅' },
-    { value: 'Boutique', icon: '🛍️' },
-    { value: 'Agence immobilière', icon: '🏠' },
-    { value: 'Autre', icon: '🏪' }
+    { value: 'Restaurant', icon: UtensilsIcon, color: '#C84B31' },
+    { value: 'Bar', icon: WineIcon, color: '#8B5CF6' },
+    { value: 'Boulangerie', icon: StoreIcon, color: '#D97706' },
+    { value: 'Coiffeur', icon: ScissorsIcon, color: '#EC4899' },
+    { value: 'Esthetique', icon: SprayCanIcon, color: '#10B981' },
+    { value: 'Boutique', icon: ShoppingBagIcon, color: '#3B82F6' },
+    { value: 'Agence immobiliere', icon: BuildingIcon, color: '#1a3a5c' },
+    { value: 'Autre', icon: StoreIcon, color: '#6B7280' }
   ];
 
   const tones = [
-    { value: 'Professionnel', icon: '👔', color: '#1a3a5c' },
-    { value: 'Familial', icon: '👨‍👩‍👧‍👦', color: '#10B981' },
-    { value: 'Jeune', icon: '🎉', color: '#c84b31' },
-    { value: 'Luxe', icon: '✨', color: '#2d5a45' },
-    { value: 'Humour', icon: '😄', color: '#F59E0B' }
+    { value: 'Professionnel', icon: BriefcaseIcon, color: '#1a3a5c' },
+    { value: 'Familial', icon: UsersIcon, color: '#10B981' },
+    { value: 'Jeune', icon: PartyPopperIcon, color: '#c84b31' },
+    { value: 'Luxe', icon: SparklesIcon, color: '#2d5a45' },
+    { value: 'Humour', icon: SmileIcon, color: '#F59E0B' }
   ];
 
   // Plateformes avec vrais logos SVG
@@ -987,9 +988,12 @@ function Moodboard() {
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>
-                    {businessTypes.find(t => t.value === businessType)?.icon ||
-                     (customBusinessType ? '🏪' : '🏪')}
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {(() => {
+                      const IconComp = businessTypes.find(t => t.value === businessType)?.icon || StoreIcon;
+                      const iconColor = businessTypes.find(t => t.value === businessType)?.color || '#6B7280';
+                      return <IconComp size={24} color={iconColor} />;
+                    })()}
                   </span>
                   <span style={{
                     fontSize: '14px',
@@ -1037,7 +1041,9 @@ function Moodboard() {
                             transform: isSelected ? 'scale(1.02)' : 'scale(1)'
                           }}
                         >
-                          <span style={{ fontSize: '24px' }}>{type.icon}</span>
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <type.icon size={24} color={isSelected ? 'white' : type.color} />
+                          </span>
                           <span>{type.value}</span>
                         </button>
                       );
@@ -1115,7 +1121,9 @@ function Moodboard() {
                         transform: isSelected ? 'scale(1.05)' : 'scale(1)'
                       }}
                     >
-                      <span style={{ fontSize: '18px' }}>{t.icon}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <t.icon size={18} color={isSelected ? 'white' : t.color} />
+                      </span>
                       <span>{t.value}</span>
                     </button>
                   );
