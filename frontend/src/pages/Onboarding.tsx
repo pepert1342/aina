@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { generateImage } from '../gemini';
 import AddressAutocomplete from '../components/AddressAutocomplete';
+import {
+  UtensilsIcon, WineIcon, CroissantIcon, ScissorsIcon, SprayCanIcon, ShoppingBagIcon,
+  BuildingIcon, StoreIcon, BriefcaseIcon, UsersIcon, PartyPopperIcon, SparklesIcon,
+  SmileIcon, CameraIcon, ThumbsUpIcon, MusicIcon, PaletteIcon, TargetIcon, RocketIcon,
+  AlertTriangleIcon, CheckIcon, RefreshIcon, LoaderIcon, TagIcon, GiftIcon, StarIcon,
+  CheckCircleIcon, EditIcon
+} from '../components/Icons';
 
 function Onboarding() {
   const navigate = useNavigate();
@@ -56,29 +63,29 @@ function Onboarding() {
   const [customBusinessType, setCustomBusinessType] = useState('');
 
   const businessTypes = [
-    { value: 'Restaurant', icon: '🍽️' },
-    { value: 'Bar', icon: '🍸' },
-    { value: 'Boulangerie', icon: '🥐' },
-    { value: 'Coiffeur', icon: '💇' },
-    { value: 'Esthétique', icon: '💅' },
-    { value: 'Boutique', icon: '🛍️' },
-    { value: 'Agence immobilière', icon: '🏠' },
-    { value: 'Autre', icon: '🏪' }
+    { value: 'Restaurant', icon: UtensilsIcon, color: '#C84B31' },
+    { value: 'Bar', icon: WineIcon, color: '#8B5CF6' },
+    { value: 'Boulangerie', icon: CroissantIcon, color: '#D97706' },
+    { value: 'Coiffeur', icon: ScissorsIcon, color: '#EC4899' },
+    { value: 'Esthetique', icon: SprayCanIcon, color: '#10B981' },
+    { value: 'Boutique', icon: ShoppingBagIcon, color: '#3B82F6' },
+    { value: 'Agence immobiliere', icon: BuildingIcon, color: '#1a3a5c' },
+    { value: 'Autre', icon: StoreIcon, color: '#6B7280' }
   ];
 
   const tones = [
-    { value: 'Professionnel', icon: '👔', desc: 'Sérieux et élégant' },
-    { value: 'Familial', icon: '👨‍👩‍👧‍👦', desc: 'Chaleureux et accueillant' },
-    { value: 'Jeune', icon: '🎉', desc: 'Fun et dynamique' },
-    { value: 'Luxe', icon: '✨', desc: 'Raffiné et exclusif' },
-    { value: 'Humour', icon: '😄', desc: 'Drôle et décalé' }
+    { value: 'Professionnel', icon: BriefcaseIcon, desc: 'Serieux et elegant', color: '#1a3a5c' },
+    { value: 'Familial', icon: UsersIcon, desc: 'Chaleureux et accueillant', color: '#10B981' },
+    { value: 'Jeune', icon: PartyPopperIcon, desc: 'Fun et dynamique', color: '#EC4899' },
+    { value: 'Luxe', icon: SparklesIcon, desc: 'Raffine et exclusif', color: '#D97706' },
+    { value: 'Humour', icon: SmileIcon, desc: 'Drole et decale', color: '#8B5CF6' }
   ];
 
   const platformsList = [
-    { value: 'Instagram', icon: '📷', color: '#E4405F', desc: 'Posts & Stories' },
-    { value: 'Facebook', icon: '👍', color: '#1877F2', desc: 'Communauté locale' },
-    { value: 'TikTok', icon: '🎵', color: '#000000', desc: 'Vidéos courtes' },
-    { value: 'LinkedIn', icon: '💼', color: '#0A66C2', desc: 'Réseau pro' }
+    { value: 'Instagram', icon: CameraIcon, color: '#E4405F', desc: 'Posts & Stories' },
+    { value: 'Facebook', icon: ThumbsUpIcon, color: '#1877F2', desc: 'Communaute locale' },
+    { value: 'TikTok', icon: MusicIcon, color: '#000000', desc: 'Videos courtes' },
+    { value: 'LinkedIn', icon: BriefcaseIcon, color: '#0A66C2', desc: 'Reseau pro' }
   ];
 
   const togglePlatform = (platform: string) => {
@@ -167,44 +174,44 @@ function Onboarding() {
     setKeywords(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Suggestions d'événements selon le type de commerce
+  // Suggestions d'evenements selon le type de commerce
   const getEventSuggestions = () => {
     const commonEvents = [
-      { icon: '🆕', text: 'Nouveau produit / Nouvelle carte' },
-      { icon: '🎉', text: 'Soirée spéciale / Événement' },
-      { icon: '💰', text: 'Promotion / Offre du moment' }
+      { icon: StarIcon, text: 'Nouveau produit / Nouvelle carte', color: '#10B981' },
+      { icon: PartyPopperIcon, text: 'Soiree speciale / Evenement', color: '#EC4899' },
+      { icon: TagIcon, text: 'Promotion / Offre du moment', color: '#F59E0B' }
     ];
 
-    const businessSpecificEvents: Record<string, Array<{icon: string, text: string}>> = {
+    const businessSpecificEvents: Record<string, Array<{icon: React.FC<{size?: number; color?: string}>, text: string, color: string}>> = {
       'Restaurant': [
-        { icon: '🍽️', text: 'Plat du jour' },
-        { icon: '🥘', text: 'Menu de saison' },
-        { icon: '👨‍🍳', text: 'Spécialité du chef' }
+        { icon: UtensilsIcon, text: 'Plat du jour', color: '#C84B31' },
+        { icon: UtensilsIcon, text: 'Menu de saison', color: '#D97706' },
+        { icon: StarIcon, text: 'Specialite du chef', color: '#10B981' }
       ],
       'Bar': [
-        { icon: '🍹', text: 'Nouveau cocktail' },
-        { icon: '🎵', text: 'Soirée DJ / Concert' },
-        { icon: '🍺', text: 'Happy Hour' }
+        { icon: WineIcon, text: 'Nouveau cocktail', color: '#8B5CF6' },
+        { icon: MusicIcon, text: 'Soiree DJ / Concert', color: '#EC4899' },
+        { icon: WineIcon, text: 'Happy Hour', color: '#F59E0B' }
       ],
       'Boulangerie': [
-        { icon: '🥐', text: 'Viennoiserie du jour' },
-        { icon: '🎂', text: 'Gâteau de saison' },
-        { icon: '🥖', text: 'Pain spécial' }
+        { icon: CroissantIcon, text: 'Viennoiserie du jour', color: '#D97706' },
+        { icon: CroissantIcon, text: 'Gateau de saison', color: '#EC4899' },
+        { icon: CroissantIcon, text: 'Pain special', color: '#8B5CF6' }
       ],
       'Coiffeur': [
-        { icon: '💇', text: 'Nouvelle coupe tendance' },
-        { icon: '💅', text: 'Offre coloration' },
-        { icon: '✨', text: 'Soin capillaire' }
+        { icon: ScissorsIcon, text: 'Nouvelle coupe tendance', color: '#EC4899' },
+        { icon: SprayCanIcon, text: 'Offre coloration', color: '#8B5CF6' },
+        { icon: SparklesIcon, text: 'Soin capillaire', color: '#10B981' }
       ],
-      'Esthétique': [
-        { icon: '💆', text: 'Nouveau soin' },
-        { icon: '🧴', text: 'Produit du mois' },
-        { icon: '💅', text: 'Offre manucure' }
+      'Esthetique': [
+        { icon: SprayCanIcon, text: 'Nouveau soin', color: '#EC4899' },
+        { icon: SprayCanIcon, text: 'Produit du mois', color: '#8B5CF6' },
+        { icon: SparklesIcon, text: 'Offre manucure', color: '#10B981' }
       ],
       'Boutique': [
-        { icon: '👗', text: 'Nouvelle collection' },
-        { icon: '🏷️', text: 'Soldes / Déstockage' },
-        { icon: '🎁', text: 'Idée cadeau' }
+        { icon: ShoppingBagIcon, text: 'Nouvelle collection', color: '#3B82F6' },
+        { icon: TagIcon, text: 'Soldes / Destockage', color: '#F59E0B' },
+        { icon: GiftIcon, text: 'Idee cadeau', color: '#EC4899' }
       ]
     };
 
@@ -408,12 +415,12 @@ function Onboarding() {
 
   const getStepTitle = () => {
     switch (currentStep) {
-      case 1: return { icon: '🏪', title: 'Votre commerce', subtitle: 'Présentez-vous en quelques mots' };
-      case 2: return { icon: '🎨', title: 'Identité visuelle', subtitle: 'Montrez votre univers à l\'IA' };
-      case 3: return { icon: '🎯', title: 'Ton & Réseaux', subtitle: 'Comment voulez-vous communiquer ?' };
-      case 4: return { icon: '🤖', title: 'Calibrage IA', subtitle: 'L\'IA apprend vos préférences' };
-      case 5: return { icon: '🚀', title: 'Confirmation', subtitle: 'Votre IA est prête !' };
-      default: return { icon: '✨', title: '', subtitle: '' };
+      case 1: return { icon: StoreIcon, title: 'Votre commerce', subtitle: 'Presentez-vous en quelques mots', color: '#C84B31' };
+      case 2: return { icon: PaletteIcon, title: 'Identite visuelle', subtitle: 'Montrez votre univers a l\'IA', color: '#10B981' };
+      case 3: return { icon: TargetIcon, title: 'Ton & Reseaux', subtitle: 'Comment voulez-vous communiquer ?', color: '#1a3a5c' };
+      case 4: return { icon: SparklesIcon, title: 'Calibrage IA', subtitle: 'L\'IA apprend vos preferences', color: '#8B5CF6' };
+      case 5: return { icon: RocketIcon, title: 'Confirmation', subtitle: 'Votre IA est prete !', color: '#10B981' };
+      default: return { icon: SparklesIcon, title: '', subtitle: '', color: '#C84B31' };
     }
   };
 
@@ -518,7 +525,18 @@ function Onboarding() {
         }}>
           {/* Step Header */}
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '8px' }}>{stepInfo.icon}</div>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              background: `linear-gradient(135deg, ${stepInfo.color}, ${stepInfo.color}99)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 12px'
+            }}>
+              <stepInfo.icon size={32} color="white" />
+            </div>
             <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A2E', marginBottom: '4px' }}>
               {stepInfo.title}
             </h2>
@@ -566,14 +584,25 @@ function Onboarding() {
                       style={{
                         padding: '14px',
                         borderRadius: '12px',
-                        border: `2px solid ${businessType === type.value ? '#c84b31' : '#E5E7EB'}`,
+                        border: `2px solid ${businessType === type.value ? type.color : '#E5E7EB'}`,
                         backgroundColor: businessType === type.value ? '#FFF8E7' : 'white',
                         cursor: 'pointer',
                         textAlign: 'center',
                         transition: 'all 0.2s'
                       }}
                     >
-                      <div style={{ fontSize: '24px', marginBottom: '4px' }}>{type.icon}</div>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        backgroundColor: `${type.color}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 8px'
+                      }}>
+                        <type.icon size={22} color={type.color} />
+                      </div>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E' }}>{type.value}</div>
                     </button>
                   ))}
@@ -624,7 +653,7 @@ function Onboarding() {
                 </p>
               </div>
 
-              {/* Avertissement choix définitif */}
+              {/* Avertissement choix definitif */}
               <div style={{
                 marginTop: '24px',
                 padding: '14px 16px',
@@ -635,7 +664,18 @@ function Onboarding() {
                 alignItems: 'flex-start',
                 gap: '12px'
               }}>
-                <span style={{ fontSize: '20px' }}>⚠️</span>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#F59E0B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <AlertTriangleIcon size={18} color="white" />
+                </div>
                 <div>
                   <p style={{
                     fontSize: '13px',
@@ -643,7 +683,7 @@ function Onboarding() {
                     color: '#92400E',
                     margin: '0 0 4px 0'
                   }}>
-                    Choix définitif
+                    Choix definitif
                   </p>
                   <p style={{
                     fontSize: '12px',
@@ -651,7 +691,7 @@ function Onboarding() {
                     margin: 0,
                     lineHeight: '1.5'
                   }}>
-                    Le nom et le type d'établissement ne pourront plus être modifiés après cette étape. Assurez-vous qu'ils sont corrects.
+                    Le nom et le type d'etablissement ne pourront plus etre modifies apres cette etape. Assurez-vous qu'ils sont corrects.
                   </p>
                 </div>
               </div>
@@ -687,15 +727,15 @@ function Onboarding() {
                       <img src={logo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
                       <>
-                        <span style={{ fontSize: '24px' }}>📷</span>
+                        <CameraIcon size={24} color="#888" />
                         <span style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>Ajouter</span>
                       </>
                     )}
                   </div>
                   <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
                   <div>
-                    <p style={{ fontWeight: '500', fontSize: '14px', color: '#1A1A2E' }}>
-                      {logo ? '✓ Logo ajouté' : 'Ajouter votre logo'}
+                    <p style={{ fontWeight: '500', fontSize: '14px', color: '#1A1A2E', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {logo ? <><CheckIcon size={16} color="#10B981" /> Logo ajoute</> : 'Ajouter votre logo'}
                     </p>
                     <p style={{ fontSize: '12px', color: '#888' }}>PNG, JPG (optionnel)</p>
                   </div>
@@ -854,7 +894,7 @@ function Onboarding() {
                       style={{
                         padding: '16px',
                         borderRadius: '12px',
-                        border: `2px solid ${tone === t.value ? '#c84b31' : '#E5E7EB'}`,
+                        border: `2px solid ${tone === t.value ? t.color : '#E5E7EB'}`,
                         backgroundColor: tone === t.value ? '#FFF8E7' : 'white',
                         cursor: 'pointer',
                         display: 'flex',
@@ -864,13 +904,23 @@ function Onboarding() {
                         transition: 'all 0.2s'
                       }}
                     >
-                      <span style={{ fontSize: '28px' }}>{t.icon}</span>
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '10px',
+                        backgroundColor: `${t.color}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <t.icon size={24} color={t.color} />
+                      </div>
                       <div>
                         <div style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>{t.value}</div>
                         <div style={{ fontSize: '12px', color: '#888' }}>{t.desc}</div>
                       </div>
                       {tone === t.value && (
-                        <span style={{ marginLeft: 'auto', color: '#c84b31', fontWeight: '600' }}>✓</span>
+                        <span style={{ marginLeft: 'auto' }}><CheckIcon size={18} color={t.color} /></span>
                       )}
                     </button>
                   ))}
@@ -897,7 +947,18 @@ function Onboarding() {
                         transition: 'all 0.2s'
                       }}
                     >
-                      <div style={{ fontSize: '28px', marginBottom: '6px' }}>{p.icon}</div>
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '10px',
+                        backgroundColor: `${p.color}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 8px'
+                      }}>
+                        <p.icon size={24} color={p.color} />
+                      </div>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: '#1A1A2E' }}>{p.value}</div>
                       <div style={{ fontSize: '11px', color: '#888' }}>{p.desc}</div>
                     </button>
@@ -939,11 +1000,11 @@ function Onboarding() {
                             fontSize: '12px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px',
+                            gap: '6px',
                             transition: 'all 0.2s'
                           }}
                         >
-                          <span>{suggestion.icon}</span>
+                          <suggestion.icon size={14} color={suggestion.color} />
                           <span style={{ color: '#444' }}>{suggestion.text}</span>
                         </button>
                       ))}
@@ -990,18 +1051,18 @@ function Onboarding() {
                       </p>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {logo && (
-                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px' }}>
-                            ✓ Logo
+                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckIcon size={12} color="#10B981" /> Logo
                           </span>
                         )}
                         {photos.length > 0 && (
-                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px' }}>
-                            ✓ {photos.length} photo(s)
+                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckIcon size={12} color="#10B981" /> {photos.length} photo(s)
                           </span>
                         )}
                         {keywords.length > 0 && (
-                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px' }}>
-                            ✓ {keywords.length} mot(s)-clé(s)
+                          <span style={{ fontSize: '11px', color: '#666', backgroundColor: 'white', padding: '4px 8px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckIcon size={12} color="#10B981" /> {keywords.length} mot(s)-cle(s)
                           </span>
                         )}
                       </div>
@@ -1029,7 +1090,7 @@ function Onboarding() {
                       boxShadow: postDescription.trim() ? '0 4px 15px rgba(200, 75, 49, 0.3)' : 'none'
                     }}
                   >
-                    🎨 Générer 4 visuels
+                    <PaletteIcon size={18} color="white" /> Generer 4 visuels
                   </button>
                 </div>
               )}
@@ -1037,7 +1098,19 @@ function Onboarding() {
               {/* Loading state */}
               {generating && (
                 <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '16px', animation: 'pulse 1.5s infinite' }}>🎨</div>
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #C84B31, #e06b4f)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 16px',
+                    animation: 'pulse 1.5s infinite'
+                  }}>
+                    <PaletteIcon size={32} color="white" />
+                  </div>
                   <p style={{ color: '#666', fontWeight: '500' }}>L'IA crée vos visuels...</p>
                   <p style={{ color: '#888', fontSize: '13px', marginTop: '8px' }}>
                     Image {generatingIndex}/4 • Round {calibrationRound}
@@ -1127,7 +1200,7 @@ function Onboarding() {
                         whiteSpace: 'nowrap'
                       }}
                     >
-                      ✏️ Modifier
+                      <EditIcon size={12} color="#666" /> Modifier
                     </button>
                   </div>
 
@@ -1190,12 +1263,9 @@ function Onboarding() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: '700',
-                            fontSize: '14px',
                             boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                           }}>
-                            ✓
+                            <CheckIcon size={16} color="white" />
                           </div>
                         )}
                       </div>
@@ -1218,7 +1288,7 @@ function Onboarding() {
                         fontSize: '13px'
                       }}
                     >
-                      🔄 Régénérer
+                      <RefreshIcon size={14} color="#666" /> Regenerer
                     </button>
                     <button
                       onClick={handleValidateCalibration}
@@ -1232,10 +1302,14 @@ function Onboarding() {
                         color: selectedImageIndex !== null ? 'white' : '#999',
                         fontWeight: '600',
                         cursor: selectedImageIndex !== null ? 'pointer' : 'not-allowed',
-                        fontSize: '13px'
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
                       }}
                     >
-                      ✓ Valider ce style
+                      <CheckIcon size={14} color="white" /> Valider ce style
                     </button>
                   </div>
 
@@ -1245,10 +1319,15 @@ function Onboarding() {
                       padding: '12px',
                       backgroundColor: '#D1FAE5',
                       borderRadius: '10px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
                     }}>
+                      <CheckCircleIcon size={18} color="#065F46" />
                       <span style={{ color: '#065F46', fontWeight: '600', fontSize: '14px' }}>
-                        ✅ Style "{preferredStyle}" enregistré !
+                        Style "{preferredStyle}" enregistre !
                       </span>
                     </div>
                   )}
@@ -1257,7 +1336,7 @@ function Onboarding() {
             </div>
           )}
 
-          {/* Étape 5: Confirmation */}
+          {/* Etape 5: Confirmation */}
           {currentStep === 5 && (
             <div>
               <div style={{
@@ -1267,16 +1346,27 @@ function Onboarding() {
                 textAlign: 'center',
                 marginBottom: '24px'
               }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px'
+                }}>
+                  <PartyPopperIcon size={32} color="white" />
+                </div>
                 <h3 style={{ color: 'white', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-                  Votre IA est prête !
+                  Votre IA est prete !
                 </h3>
                 <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '14px' }}>
-                  AiNa connaît maintenant votre univers
+                  AiNa connait maintenant votre univers
                 </p>
               </div>
 
-              {/* Récap */}
+              {/* Recap */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{
                   padding: '14px',
@@ -1286,7 +1376,9 @@ function Onboarding() {
                   alignItems: 'center',
                   gap: '12px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>🏪</span>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#C84B3115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <StoreIcon size={20} color="#C84B31" />
+                  </div>
                   <div>
                     <div style={{ fontSize: '12px', color: '#888' }}>Commerce</div>
                     <div style={{ fontWeight: '600', color: '#1A1A2E' }}>{businessName}</div>
@@ -1302,11 +1394,13 @@ function Onboarding() {
                   alignItems: 'center',
                   gap: '12px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>🎨</span>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#10B98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PaletteIcon size={20} color="#10B981" />
+                  </div>
                   <div>
-                    <div style={{ fontSize: '12px', color: '#888' }}>Identité</div>
-                    <div style={{ fontWeight: '600', color: '#1A1A2E' }}>
-                      {logo ? '✓ Logo' : '○ Logo'} • {photos.length} photo(s) • {keywords.length} mot(s)-clé(s)
+                    <div style={{ fontSize: '12px', color: '#888' }}>Identite</div>
+                    <div style={{ fontWeight: '600', color: '#1A1A2E', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {logo ? <><CheckIcon size={14} color="#10B981" /> Logo</> : 'Logo'} - {photos.length} photo(s) - {keywords.length} mot(s)-cle(s)
                     </div>
                   </div>
                 </div>
@@ -1319,11 +1413,13 @@ function Onboarding() {
                   alignItems: 'center',
                   gap: '12px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>🎯</span>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#1a3a5c15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TargetIcon size={20} color="#1a3a5c" />
+                  </div>
                   <div>
                     <div style={{ fontSize: '12px', color: '#888' }}>Communication</div>
                     <div style={{ fontWeight: '600', color: '#1A1A2E' }}>
-                      Ton {tone} • {platforms.join(', ')}
+                      Ton {tone} - {platforms.join(', ')}
                     </div>
                   </div>
                 </div>
@@ -1336,9 +1432,11 @@ function Onboarding() {
                   alignItems: 'center',
                   gap: '12px'
                 }}>
-                  <span style={{ fontSize: '24px' }}>🤖</span>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', backgroundColor: '#8B5CF615', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <SparklesIcon size={20} color="#8B5CF6" />
+                  </div>
                   <div>
-                    <div style={{ fontSize: '12px', color: '#888' }}>Style IA préféré</div>
+                    <div style={{ fontSize: '12px', color: '#888' }}>Style IA prefere</div>
                     <div style={{ fontWeight: '600', color: '#1A1A2E', textTransform: 'capitalize' }}>
                       {preferredStyle || 'Standard'}
                     </div>
@@ -1415,7 +1513,11 @@ function Onboarding() {
             boxShadow: canContinue() && !loading ? '0 4px 15px rgba(200, 75, 49, 0.3)' : 'none'
           }}
         >
-          {loading ? '⏳ Création...' : currentStep === totalSteps ? '🚀 Commencer !' : 'Continuer →'}
+          {loading ? (
+            <><LoaderIcon size={16} color="#999" /> Creation...</>
+          ) : currentStep === totalSteps ? (
+            <><RocketIcon size={16} color="white" /> Commencer !</>
+          ) : 'Continuer'}
         </button>
       </div>
 

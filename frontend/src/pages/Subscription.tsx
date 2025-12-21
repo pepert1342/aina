@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { HomeIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { HomeIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon, AlertTriangleIcon, LoaderIcon, RefreshIcon } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
 interface Subscription {
@@ -534,7 +534,9 @@ function SubscriptionPage() {
                   fontSize: '13px',
                   color: '#92400E'
                 }}>
-                  ⚠️ Votre abonnement ne sera pas renouvelé. Vous conservez l'accès jusqu'au {formatDate(subscription.current_period_end)}.
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangleIcon size={16} color="#92400E" /> Votre abonnement ne sera pas renouvele. Vous conservez l'acces jusqu'au {formatDate(subscription.current_period_end)}.
+                  </span>
                 </div>
               )}
             </div>
@@ -568,7 +570,9 @@ function SubscriptionPage() {
                     opacity: canceling ? 0.7 : 1
                   }}
                 >
-                  {canceling ? '⏳ Traitement...' : '🔄 Réactiver mon abonnement'}
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {canceling ? <><LoaderIcon size={16} color="white" /> Traitement...</> : <><RefreshIcon size={16} color="white" /> Reactiver mon abonnement</>}
+                  </span>
                 </button>
               ) : (
                 <button
@@ -602,7 +606,18 @@ function SubscriptionPage() {
             textAlign: 'center',
             border: '1px solid #E5E7EB'
           }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>😢</div>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '16px',
+              backgroundColor: '#FEE2E2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <CloseIcon size={32} color="#DC2626" />
+            </div>
             <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A2E', marginBottom: '8px' }}>
               Aucun abonnement actif
             </h3>
@@ -652,7 +667,18 @@ function SubscriptionPage() {
             width: '100%'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>😢</div>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '16px',
+                backgroundColor: '#FEE2E2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}>
+                <CloseIcon size={32} color="#DC2626" />
+              </div>
               <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1A1A2E', marginBottom: '8px' }}>
                 Vous nous quittez ?
               </h3>
@@ -678,7 +704,9 @@ function SubscriptionPage() {
                   opacity: canceling ? 0.7 : 1
                 }}
               >
-                {canceling ? '⏳ Annulation...' : 'Confirmer l\'annulation'}
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  {canceling ? <><LoaderIcon size={16} color="white" /> Annulation...</> : 'Confirmer l\'annulation'}
+                </span>
               </button>
               <button
                 onClick={() => setShowCancelModal(false)}

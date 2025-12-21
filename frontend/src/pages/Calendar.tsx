@@ -6,7 +6,7 @@ import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { generateYearEvents } from '../autoEvents';
-import { HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon, DiamondIcon, LogoutIcon, PaletteIcon, DownloadIcon, CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { HomeIcon, SparklesIcon, PlusIcon, CheckIcon, LoaderIcon, DiamondIcon, LogoutIcon, PaletteIcon, DownloadIcon, CopyIcon, ImageIcon, LightbulbIcon, TrendingUpIcon, TagIcon, PartyPopperIcon, GiftIcon, CakeIcon, MoonIcon, CalendarIcon, BuildingIcon, ShoppingBagIcon, SunIcon, EditIcon, TrashIcon, CloseIcon, AlertTriangleIcon } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
 const locales = { 'fr': fr };
@@ -97,13 +97,13 @@ function CalendarPage() {
   const [newDescription, setNewDescription] = useState('');
 
   const eventTypes = [
-    { value: 'Promotion', icon: '🏷️', color: '#c84b31' },
-    { value: 'Événement', icon: '🎉', color: '#2d5a45' },
-    { value: 'Fête', icon: '🎊', color: '#EC4899' },
-    { value: 'Nouveau produit', icon: '✨', color: '#10B981' },
-    { value: 'Soirée', icon: '🌙', color: '#1a3a5c' },
-    { value: 'Jeu concours', icon: '🎁', color: '#F59E0B' },
-    { value: 'Anniversaire', icon: '🎂', color: '#EF4444' }
+    { value: 'Promotion', icon: TagIcon, color: '#c84b31' },
+    { value: 'Evenement', icon: PartyPopperIcon, color: '#2d5a45' },
+    { value: 'Fete', icon: PartyPopperIcon, color: '#EC4899' },
+    { value: 'Nouveau produit', icon: SparklesIcon, color: '#10B981' },
+    { value: 'Soiree', icon: MoonIcon, color: '#1a3a5c' },
+    { value: 'Jeu concours', icon: GiftIcon, color: '#F59E0B' },
+    { value: 'Anniversaire', icon: CakeIcon, color: '#EF4444' }
   ];
 
   useEffect(() => {
@@ -893,8 +893,8 @@ function CalendarPage() {
                 borderRadius: '50%',
                 backgroundColor: type.color
               }} />
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E' }}>
-                {type.icon} {type.value}
+              <span style={{ fontSize: '13px', fontWeight: '500', color: '#1A1A2E', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <type.icon size={13} color={type.color} /> {type.value}
               </span>
             </div>
           ))}
@@ -1119,7 +1119,7 @@ function CalendarPage() {
                         gap: '4px'
                       }}
                     >
-                      {type.icon} {type.value}
+                      <type.icon size={12} color={newType === type.value ? type.color : '#666'} /> {type.value}
                     </button>
                   ))}
                 </div>
@@ -1247,9 +1247,17 @@ function CalendarPage() {
                 fontSize: '20px',
                 flexShrink: 0
               }}>
-                {selectedEvent.isAuto 
-                  ? selectedEvent.title.split(' ')[0] 
-                  : eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || '📅'}
+                {selectedEvent.isAuto
+                  ? (() => {
+                      const IconComponent = selectedEvent.event_type === 'ferie' ? BuildingIcon :
+                        selectedEvent.event_type === 'commercial' ? ShoppingBagIcon :
+                        selectedEvent.event_type === 'fete' ? PartyPopperIcon : SunIcon;
+                      return <IconComponent size={20} color="#1A1A2E" />;
+                    })()
+                  : (() => {
+                      const IconComponent = eventTypes.find(t => t.value === selectedEvent.event_type)?.icon || CalendarIcon;
+                      return <IconComponent size={20} color={getEventColor(selectedEvent.event_type)} />;
+                    })()}
               </div>
               
               <div style={{ flex: 1 }}>
@@ -1303,11 +1311,23 @@ function CalendarPage() {
               fontWeight: '600',
               marginBottom: '12px'
             }}>
-              {selectedEvent.isAuto 
-                ? (selectedEvent.event_type === 'ferie' ? '🏛️ Jour férié' :
-                   selectedEvent.event_type === 'commercial' ? '🛍️ Commercial' :
-                   selectedEvent.event_type === 'fete' ? '🎉 Fête' : '🌿 Saison')
-                : selectedEvent.event_type}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {selectedEvent.isAuto
+                  ? (() => {
+                      const type = selectedEvent.event_type;
+                      const IconComp = type === 'ferie' ? BuildingIcon :
+                        type === 'commercial' ? ShoppingBagIcon :
+                        type === 'fete' ? PartyPopperIcon : SunIcon;
+                      const label = type === 'ferie' ? 'Jour ferie' :
+                        type === 'commercial' ? 'Commercial' :
+                        type === 'fete' ? 'Fete' : 'Saison';
+                      const col = type === 'ferie' ? '#3B82F6' :
+                        type === 'commercial' ? '#F59E0B' :
+                        type === 'fete' ? '#2d5a45' : '#10B981';
+                      return <><IconComp size={12} color={col} /> {label}</>;
+                    })()
+                  : selectedEvent.event_type}
+              </span>
             </div>
 
             {/* Description si présente */}
@@ -1532,7 +1552,7 @@ function CalendarPage() {
                       gap: '4px'
                     }}
                   >
-                    ✏️ Modifier
+                    <EditIcon size={13} color="#666" /> Modifier
                   </button>
                   <button
                     onClick={() => {
@@ -1566,7 +1586,7 @@ function CalendarPage() {
                       gap: '4px'
                     }}
                   >
-                    🗑️ Supprimer
+                    <TrashIcon size={13} color="#EF4444" /> Supprimer
                   </button>
                 </>
               )}
@@ -1593,7 +1613,7 @@ function CalendarPage() {
                     gap: '4px'
                   }}
                 >
-                  🚫 Masquer cette suggestion
+                  <CloseIcon size={13} color="#EF4444" /> Masquer cette suggestion
                 </button>
               )}
             </div>
@@ -1648,10 +1668,9 @@ function CalendarPage() {
                 borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px'
+                justifyContent: 'center'
               }}>
-                ⚠️
+                <AlertTriangleIcon size={20} color="white" />
               </div>
               <h3 style={{
                 fontSize: '18px',

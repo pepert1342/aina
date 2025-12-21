@@ -7,7 +7,8 @@ import {
   HomeIcon, SparklesIcon, CalendarIcon, CameraIcon, LightbulbIcon,
   DiamondIcon, PaletteIcon, LogoutIcon, ClockIcon, ImageIcon,
   MessageIcon, PhoneIcon, TrendingUpIcon, CheckIcon, RefreshIcon,
-  PlusIcon, ArrowRightIcon, DownloadIcon, CopyIcon, TemplateIcon
+  PlusIcon, ArrowRightIcon, DownloadIcon, CopyIcon, TemplateIcon,
+  AlertTriangleIcon
 } from '../components/Icons';
 import { NotificationBell } from '../components/Notifications';
 
@@ -1808,9 +1809,9 @@ function Dashboard() {
                       alignItems: 'center',
                       gap: '10px'
                     }}>
-                      <span style={{ fontSize: '18px' }}>💡</span>
+                      <LightbulbIcon size={18} color="#6B21A8" />
                       <p style={{ fontSize: '12px', color: '#6B21A8', margin: 0 }}>
-                        Cliquez sur "Utiliser" pour créer un nouveau post basé sur ce template
+                        Cliquez sur "Utiliser" pour creer un nouveau post base sur ce template
                       </p>
                     </div>
 
@@ -2783,10 +2784,9 @@ function Dashboard() {
                 borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px'
+                justifyContent: 'center'
               }}>
-                ⚠️
+                <AlertTriangleIcon size={20} color="white" />
               </div>
               <h3 style={{
                 fontSize: '18px',

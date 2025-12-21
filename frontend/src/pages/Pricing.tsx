@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { HomeIcon, SparklesIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon } from '../components/Icons';
+import { HomeIcon, SparklesIcon, CheckIcon, CloseIcon, DiamondIcon, LogoutIcon, PaletteIcon, PlusIcon, CalendarIcon, ImageIcon, LightbulbIcon, TrendingUpIcon, GiftIcon, TagIcon, AlertTriangleIcon, LoaderIcon, RocketIcon, LockIcon } from '../components/Icons';
 
 // Prix Stripe
 const PRICES = {
@@ -603,7 +603,7 @@ function Pricing() {
               fontSize: '11px',
               fontWeight: '600'
             }}>
-              💰 Économisez 17%
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><TagIcon size={12} color="white" /> Economisez 17%</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
               <div>
@@ -658,8 +658,8 @@ function Pricing() {
           marginBottom: '24px',
           border: '1px solid #E5E7EB'
         }}>
-          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', color: '#1A1A2E', marginBottom: '8px' }}>
-            🎁 Code promo / Parrainage
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: '600', color: '#1A1A2E', marginBottom: '8px' }}>
+            <GiftIcon size={16} color="#C84B31" /> Code promo / Parrainage
           </label>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input
@@ -697,8 +697,8 @@ function Pricing() {
             </button>
           </div>
           {promoApplied && (
-            <p style={{ fontSize: '13px', color: '#10B981', marginTop: '8px', fontWeight: '600' }}>
-              ✅ Code appliqué : -{validPromoCodes[promoCode.toUpperCase().trim()]}%
+            <p style={{ fontSize: '13px', color: '#10B981', marginTop: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckIcon size={14} color="#10B981" /> Code applique : -{validPromoCodes[promoCode.toUpperCase().trim()]}%
             </p>
           )}
           {promoError && (
@@ -762,13 +762,17 @@ function Pricing() {
             marginBottom: '16px'
           }}
         >
-          {processing ? '⏳ Traitement...' : `🚀 S'abonner - ${selectedPlan === 'monthly' ? monthlyPrice.toFixed(0) + '€/mois' : yearlyPrice.toFixed(0) + '€/an'}`}
+          {processing ? (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><LoaderIcon size={18} color="#999" /> Traitement...</span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}><RocketIcon size={18} color="white" /> S'abonner - {selectedPlan === 'monthly' ? monthlyPrice.toFixed(0) + '/mois' : yearlyPrice.toFixed(0) + '/an'}</span>
+          )}
         </button>
 
         {/* Security badges */}
         <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
-            🔒 Paiement sécurisé par Stripe
+          <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <LockIcon size={14} color="#888" /> Paiement securise par Stripe
           </p>
           <p style={{ fontSize: '11px', color: '#999' }}>
             Annulation possible à tout moment depuis votre profil
@@ -824,10 +828,9 @@ function Pricing() {
                 borderRadius: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '18px'
+                justifyContent: 'center'
               }}>
-                ⚠️
+                <AlertTriangleIcon size={20} color="white" />
               </div>
               <h3 style={{
                 fontSize: '18px',
