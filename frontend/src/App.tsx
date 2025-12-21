@@ -13,12 +13,20 @@ function App() {
   const [isVisible] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
+  const [showSafariInstructions, setShowSafariInstructions] = useState(false);
 
   useEffect(() => {
     // Vérifier si l'app est déjà installée
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
     }
+
+    // Détecter Safari (iOS et macOS)
+    const ua = navigator.userAgent;
+    const isSafariBrowser = /^((?!chrome|android).)*safari/i.test(ua) ||
+      (/iPad|iPhone|iPod/.test(ua) && !('MSStream' in window));
+    setIsSafari(isSafariBrowser);
 
     // Écouter l'événement beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -40,6 +48,11 @@ function App() {
   }, []);
 
   const handleInstallClick = async () => {
+    if (isSafari) {
+      setShowSafariInstructions(true);
+      return;
+    }
+
     if (!installPrompt) return;
 
     await installPrompt.prompt();
@@ -49,6 +62,9 @@ function App() {
       setInstallPrompt(null);
     }
   };
+
+  // Détecter si on est sur iOS
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
 
   return (
     <div style={{ 
@@ -187,7 +203,7 @@ function App() {
             </button>
 
           {/* Bouton Installer l'application */}
-          {installPrompt && !isInstalled && (
+          {(installPrompt || isSafari) && !isInstalled && (
             <button
               onClick={handleInstallClick}
               style={{
@@ -419,7 +435,7 @@ function App() {
           </button>
 
           {/* Bouton Installer l'application */}
-          {installPrompt && !isInstalled && (
+          {(installPrompt || isSafari) && !isInstalled && (
             <button
               onClick={handleInstallClick}
               style={{
@@ -541,6 +557,193 @@ function App() {
           © 2024 AiNa - Votre Community Manager IA
         </p>
       </footer>
+
+      {/* Modal Instructions Safari */}
+      {showSafariInstructions && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setShowSafariInstructions(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '24px',
+              maxWidth: '340px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+                borderRadius: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <DownloadIcon size={28} color="white" />
+              </div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#1A1A2E', marginBottom: '8px' }}>
+                Installer AiNa
+              </h3>
+              <p style={{ fontSize: '14px', color: '#666' }}>
+                {isIOS ? 'Sur iPhone/iPad' : 'Sur Safari'}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              {isIOS ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: '#007AFF',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2L12 14M12 2L7 7M12 2L17 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                        <path d="M4 14V20H20V14" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>1. Appuyez sur Partager</p>
+                      <p style={{ fontSize: '12px', color: '#888' }}>L'icône en bas de Safari</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: '#1a3a5c',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                        <rect x="3" y="3" width="18" height="18" rx="3" stroke="white" strokeWidth="2" fill="none"/>
+                        <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>2. "Sur l'écran d'accueil"</p>
+                      <p style={{ fontSize: '12px', color: '#888' }}>Faites défiler et appuyez</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: '#10B981',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                        <path d="M5 12L10 17L19 8" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>3. Appuyez sur "Ajouter"</p>
+                      <p style={{ fontSize: '12px', color: '#888' }}>L'app sera sur votre écran</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: '#007AFF',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2L12 14M12 2L7 7M12 2L17 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                        <path d="M4 14V20H20V14" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>1. Menu Fichier ou Partager</p>
+                      <p style={{ fontSize: '12px', color: '#888' }}>En haut de Safari</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      backgroundColor: '#1a3a5c',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                        <rect x="3" y="3" width="18" height="18" rx="3" stroke="white" strokeWidth="2" fill="none"/>
+                        <path d="M12 8V16M8 12H16" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: '#1A1A2E' }}>2. "Ajouter au Dock"</p>
+                      <p style={{ fontSize: '12px', color: '#888' }}>L'app sera dans votre Dock</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowSafariInstructions(false)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: 'pointer'
+              }}
+            >
+              J'ai compris
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
