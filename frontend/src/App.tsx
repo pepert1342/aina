@@ -84,29 +84,6 @@ function App() {
         </div>
         
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Bouton Installer l'app */}
-          {installPrompt && !isInstalled && (
-            <button
-              onClick={handleInstallClick}
-              style={{
-                padding: '10px 14px',
-                background: 'linear-gradient(135deg, #10B981, #34D399)',
-                border: 'none',
-                borderRadius: '10px',
-                color: 'white',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
-              }}
-            >
-              <DownloadIcon size={16} color="white" />
-              Installer
-            </button>
-          )}
           <button
             onClick={() => navigate('/login')}
             style={{
@@ -208,6 +185,31 @@ function App() {
               <SparklesIcon size={18} color="white" />
               Commencer
             </button>
+
+          {/* Bouton Installer l'application */}
+          {installPrompt && !isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+                border: 'none',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '16px',
+                cursor: 'pointer',
+                boxShadow: '0 8px 30px rgba(26, 58, 92, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                <DownloadIcon size={18} color="white" />
+                Installer l'application
+            </button>
+          )}
         </div>
 
         {/* 3 Étapes */}
@@ -416,28 +418,29 @@ function App() {
               <ArrowRightIcon size={18} color="#1a3a5c" />
           </button>
 
-          {/* Bouton Télécharger l'app */}
+          {/* Bouton Installer l'application */}
           {installPrompt && !isInstalled && (
             <button
               onClick={handleInstallClick}
               style={{
                 width: '100%',
                 maxWidth: '280px',
-                padding: '14px 32px',
-                backgroundColor: 'transparent',
-                border: '2px solid white',
+                padding: '16px 32px',
+                background: 'linear-gradient(135deg, #1a3a5c, #2a5a7c)',
+                border: 'none',
                 borderRadius: '12px',
                 color: 'white',
-                fontWeight: '600',
-                fontSize: '15px',
+                fontWeight: '700',
+                fontSize: '16px',
                 cursor: 'pointer',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px'
               }}>
                 <DownloadIcon size={18} color="white" />
-                Télécharger l'application
+                Installer l'application
             </button>
           )}
         </div>
