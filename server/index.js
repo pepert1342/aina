@@ -340,6 +340,89 @@ app.post('/api/stripe-webhook', async (req, res) => {
   res.json({ received: true });
 });
 
+// Endpoint pour modifier une image existante avec Imagen 3
+app.post('/api/modify-image', async (req, res) => {
+  try {
+    const { imageBase64, modifications, businessName, businessType, tone, conversationHistory } = req.body;
+
+    if (!imageBase64 || !modifications) {
+      return res.status(400).json({ error: 'imageBase64 et modifications requis' });
+    }
+
+    console.log('🎨 Modification image avec:', modifications.substring(0, 100) + '...');
+
+    // Obtenir le token d'accès
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
+
+    // Construire le contexte de conversation si disponible
+    let contextPrompt = '';
+    if (conversationHistory && conversationHistory.length > 0) {
+      contextPrompt = 'Previous conversation context:\n' +
+        conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n') + '\n\n';
+    }
+
+    // Construire le prompt de modification
+    const modificationPrompt = `${contextPrompt}Modify this image for a ${businessType} called "${businessName}" with a ${tone} style.
+
+MODIFICATION REQUEST: ${modifications}
+
+IMPORTANT RULES:
+- Maintain the overall composition and style
+- Apply the requested changes naturally
+- Keep professional quality suitable for social media
+- DO NOT add any text, words, or watermarks`;
+
+    // Appeler Gemini Vision pour générer une nouvelle image basée sur les modifications
+    // Note: Imagen 3 ne supporte pas l'édition d'image directe, donc on génère une nouvelle image
+    const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/imagen-3.0-generate-001:predict`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        instances: [
+          {
+            prompt: modificationPrompt
+          }
+        ],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: "1:1",
+          safetyFilterLevel: "block_few",
+          personGeneration: "allow_adult"
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('❌ Erreur Imagen modification:', error);
+      return res.status(response.status).json({ error: 'Erreur modification image', details: error });
+    }
+
+    const data = await response.json();
+
+    if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
+      const base64Image = data.predictions[0].bytesBase64Encoded;
+      console.log('✅ Image modifiée avec succès');
+      return res.json({
+        success: true,
+        image: `data:image/png;base64,${base64Image}`
+      });
+    }
+
+    return res.status(500).json({ error: 'Aucune image dans la réponse' });
+
+  } catch (error) {
+    console.error('❌ Erreur serveur modification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'AiNa Backend running 🚀', stripe: 'configured' });

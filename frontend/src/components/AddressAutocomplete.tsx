@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const GOOGLE_PLACES_API_KEY = 'AIzaSyCgsJKZROIcOF_Di7As4XX4dRIMWjGFFfE';
+// Clé API Google Places - à configurer via variable d'environnement
+const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY || '';
 
 interface AddressAutocompleteProps {
   value: string;
@@ -38,6 +39,12 @@ function AddressAutocomplete({
 
   // Charger le script Google Maps
   useEffect(() => {
+    // Ne pas charger si pas de clé API configurée
+    if (!GOOGLE_PLACES_API_KEY) {
+      console.warn('[AddressAutocomplete] Clé API Google Places non configurée (VITE_GOOGLE_PLACES_API_KEY)');
+      return;
+    }
+
     if (window.google && window.google.maps && window.google.maps.places) {
       setIsLoaded(true);
       return;
