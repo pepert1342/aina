@@ -38,15 +38,25 @@ const StarIconComponent = ({ size = 20, color = 'currentColor', filled = false }
   </svg>
 );
 
+interface UserType {
+  id: string;
+  email?: string;
+}
+
+interface SubscriptionType {
+  id: string;
+  status: string;
+  plan?: string;
+}
+
 function Templates() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [_subscription, setSubscription] = useState<any>(null);
-  void _subscription;
+  const [, setSubscription] = useState<SubscriptionType | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -58,33 +68,6 @@ function Templates() {
     { value: 'quotidien', label: 'Quotidien', icon: '📅' },
     { value: 'autre', label: 'Autres', icon: '📌' }
   ];
-
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate('/login');
-      return;
-    }
-    setUser(session.user);
-    await loadTemplates(session.user.id);
-
-    // Charger l'abonnement
-    const { data: subData } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (subData) setSubscription(subData);
-
-    setLoading(false);
-    setTimeout(() => setIsVisible(true), 100);
-  };
 
   const loadTemplates = async (userId: string) => {
     const { data, error } = await supabase
@@ -102,6 +85,33 @@ function Templates() {
       console.error('Erreur chargement templates:', error);
     }
   };
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login');
+        return;
+      }
+      setUser(session.user);
+      await loadTemplates(session.user.id);
+
+      // Charger l'abonnement
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (subData) setSubscription(subData);
+
+      setLoading(false);
+      setTimeout(() => setIsVisible(true), 100);
+    };
+
+    checkUser();
+  }, [navigate]);
 
   const handleUseTemplate = async (template: Template) => {
     // Incrémenter le compteur d'utilisation

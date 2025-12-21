@@ -37,15 +37,26 @@ interface SavedPost {
   style?: string;
 }
 
+interface UserType {
+  id: string;
+  email?: string;
+}
+
+interface SubscriptionType {
+  id: string;
+  status: string;
+  plan?: string;
+}
+
 function CreatePost() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
+  const [subscription, setSubscription] = useState<SubscriptionType | null>(null);
 
   // Paramètres d'événement depuis l'URL
   const eventTitle = searchParams.get('title');
@@ -232,48 +243,48 @@ function CreatePost() {
 
 
   useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/login');
+        return;
+      }
+      setUser(session.user);
+
+      const { data: businessData } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+
+      if (businessData) setBusiness(businessData);
+
+      // Charger l'abonnement
+      const { data: subData } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (subData) setSubscription(subData);
+
+      // Charger l'historique des posts pour l'IA
+      const { data: postsData } = await supabase
+        .from('posts_history')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (postsData) setSavedPosts(postsData);
+
+      setLoading(false);
+      setTimeout(() => setIsVisible(true), 100);
+    };
+
     checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate('/login');
-      return;
-    }
-    setUser(session.user);
-
-    const { data: businessData } = await supabase
-      .from('businesses')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .maybeSingle();
-
-    if (businessData) setBusiness(businessData);
-
-    // Charger l'abonnement
-    const { data: subData } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('status', 'active')
-      .maybeSingle();
-
-    if (subData) setSubscription(subData);
-
-    // Charger l'historique des posts pour l'IA
-    const { data: postsData } = await supabase
-      .from('posts_history')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    if (postsData) setSavedPosts(postsData);
-
-    setLoading(false);
-    setTimeout(() => setIsVisible(true), 100);
-  };
+  }, [navigate]);
 
   // Gestion upload photo
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -117,176 +117,274 @@ function Dashboard() {
     }
   }, [searchParams]);
 
+  // Générer une clé unique pour un événement
+  const generateEventKey = (event: AutoEvent): string => {
+    const dateStr = event.date.toISOString().split('T')[0];
+    const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    return `${titleSlug}-${dateStr}`;
+  };
+
   useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    try {
-      console.log('🔍 Dashboard: Vérification session...');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('❌ Erreur session:', sessionError);
-        navigate('/login');
-        return;
-      }
-
-      if (!session) {
-        console.log('⚠️ Pas de session, redirection login');
-        navigate('/login');
-        return;
-      }
-
-      console.log('✅ Session trouvée:', session.user.email);
-      setUser(session.user);
-
-    // Vérifier si on revient de Stripe avec un session_id
-    const urlParams = new URLSearchParams(window.location.search);
-    const stripeSessionId = urlParams.get('session_id');
-
-    if (stripeSessionId) {
-      // Créer l'abonnement dans Supabase après paiement Stripe réussi
-      console.log('Session Stripe détectée:', stripeSessionId);
-
-      // Vérifier si l'abonnement existe déjà
-      const { data: existingSubs, error: selectError } = await supabase
-        .from('subscriptions')
+    const loadData = async (userId: string): Promise<Business | null> => {
+      const { data: businessData } = await supabase
+        .from('businesses')
         .select('*')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active');
+        .eq('user_id', userId)
+        .single();
 
-      console.log('Abonnements existants:', existingSubs, selectError);
+      if (businessData) {
+        setBusiness(businessData);
+      }
 
-      if (!existingSubs || existingSubs.length === 0) {
-        // Créer l'abonnement
-        const { data: newSub, error: insertError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: session.user.id,
-            plan: 'monthly',
-            status: 'active',
-            current_period_start: new Date().toISOString(),
-            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            stripe_subscription_id: stripeSessionId
-          })
-          .select()
-          .single();
+      // Charger les posts sauvegardés
+      const { data: postsData } = await supabase
+        .from('posts_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
 
-        console.log('Résultat insertion:', newSub, insertError);
+      if (postsData) {
+        setSavedPosts(postsData);
+      }
 
-        if (insertError) {
-          console.error('Erreur création abonnement:', insertError);
-          alert('Erreur création abonnement: ' + insertError.message);
+      // Charger les templates
+      const { data: templatesData } = await supabase
+        .from('post_templates')
+        .select('*')
+        .eq('user_id', userId)
+        .order('is_favorite', { ascending: false })
+        .order('use_count', { ascending: false });
+
+      if (templatesData) {
+        setTemplates(templatesData);
+      }
+
+      return businessData;
+    };
+
+    const loadAllEvents = async (userId: string, businessAddress?: string, hiddenKeys?: Set<string>) => {
+      // 1. Événements auto-générés (fêtes, jours fériés nationaux)
+      const upcoming = getUpcomingEvents(60);
+      const autoEventsData = upcoming.filter(e => e.suggestPost);
+
+      // 2. Événements manuels de l'utilisateur
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 60);
+
+      const { data: manualEvents } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('event_date', today.toISOString().split('T')[0])
+        .lte('event_date', futureDate.toISOString().split('T')[0])
+        .order('event_date', { ascending: true });
+
+      // 3. Convertir les événements manuels au format AutoEvent
+      const manualEventsFormatted: AutoEvent[] = (manualEvents || []).map(event => {
+        const eventDate = new Date(event.event_date);
+        const timeDiff = eventDate.getTime() - today.getTime();
+        const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+        // Icône selon le type
+        const iconMap: Record<string, string> = {
+          'Promotion': '🏷️',
+          'Événement': '🎉',
+          'Fête': '🎊',
+          'Nouveau produit': '✨',
+          'Soirée': '🌙',
+          'Jeu concours': '🎁',
+          'Anniversaire': '🎂'
+        };
+
+        return {
+          id: event.id,
+          date: eventDate,
+          title: event.title,
+          type: event.event_type || 'Événement',
+          icon: iconMap[event.event_type] || '📌',
+          description: event.description || '',
+          suggestPost: true,
+          daysUntil: daysUntil,
+          isManual: true,
+          post_id: event.post_id
+        };
+      });
+
+      // 4. Événements locaux (OpenAgenda) si adresse disponible
+      let localEventsFormatted: AutoEvent[] = [];
+      console.log('🗺️ Adresse business pour événements locaux:', businessAddress);
+      if (businessAddress) {
+        try {
+          console.log('🗺️ Recherche événements locaux...');
+          const localEvents = await getAllLocalEvents(businessAddress, {
+            limit: 10,
+            fromDate: today,
+            toDate: futureDate
+          });
+          console.log('🗺️ Événements locaux trouvés:', localEvents.length, localEvents);
+
+          localEventsFormatted = localEvents.map(event => {
+            const eventDate = new Date(event.event_date);
+            const timeDiff = eventDate.getTime() - today.getTime();
+            const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+            return {
+              id: event.id,
+              date: eventDate,
+              title: event.title,
+              type: 'Local',
+              icon: '📍',
+              description: event.description || '',
+              suggestPost: true,
+              daysUntil: daysUntil,
+              isLocal: true,
+              city: event.city
+            };
+          });
+        } catch (error) {
+          console.error('Erreur chargement événements locaux:', error);
         }
       }
 
-      // Nettoyer l'URL
-      window.history.replaceState({}, '', '/dashboard');
-    }
+      // 5. Combiner, filtrer les masqués, et trier par date
+      const allEvents = [...autoEventsData, ...manualEventsFormatted, ...localEventsFormatted]
+        .filter(event => {
+          // Ne pas filtrer les événements manuels (ils peuvent être supprimés autrement)
+          if ('isManual' in event && event.isManual) return true;
+          // Filtrer les événements suggérés masqués
+          const dateStr = event.date.toISOString().split('T')[0];
+          const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const eventKey = `${titleSlug}-${dateStr}`;
+          return !hiddenKeys?.has(eventKey);
+        })
+        .sort((a, b) => a.daysUntil - b.daysUntil)
+        .slice(0, 8);
 
-    // Vérifier l'abonnement
-    console.log('🔍 Vérification abonnement pour user:', session.user.id);
-    const { data: subDataArray, error: subError } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('status', 'active');
+      setAutoEvents(allEvents);
+    };
 
-    console.log('📋 Résultat abonnement:', subDataArray, subError);
+    const checkUser = async () => {
+      try {
+        console.log('🔍 Dashboard: Vérification session...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (subError) {
-      console.error('❌ Erreur Supabase subscriptions:', subError);
-      // En cas d'erreur Supabase, on continue quand même pour éviter le blocage
-    }
+        if (sessionError) {
+          console.error('❌ Erreur session:', sessionError);
+          navigate('/login');
+          return;
+        }
 
-    const subData = subDataArray && subDataArray.length > 0 ? subDataArray[0] : null;
+        if (!session) {
+          console.log('⚠️ Pas de session, redirection login');
+          navigate('/login');
+          return;
+        }
 
-    if (!subData) {
-      // Pas d'abonnement actif, rediriger vers pricing
-      console.log('⚠️ Pas d\'abonnement actif, redirection vers pricing');
-      navigate('/pricing');
-      return;
-    }
+        console.log('✅ Session trouvée:', session.user.email);
+        setUser(session.user);
 
-    // Vérifier si l'abonnement n'a pas expiré
-    if (new Date(subData.current_period_end) < new Date()) {
-      console.log('⚠️ Abonnement expiré');
-      navigate('/pricing');
-      return;
-    }
+        // Vérifier si on revient de Stripe avec un session_id
+        const urlParams = new URLSearchParams(window.location.search);
+        const stripeSessionId = urlParams.get('session_id');
 
-    console.log('✅ Abonnement valide, chargement des données...');
-    setSubscription(subData);
-    const businessData = await loadData(session.user.id);
-    console.log('🏪 Business chargé:', businessData?.business_name, '- Adresse:', businessData?.address);
+        if (stripeSessionId) {
+          // Créer l'abonnement dans Supabase après paiement Stripe réussi
+          console.log('Session Stripe détectée:', stripeSessionId);
 
-    // Charger les événements masqués d'abord
-    const { data: hiddenData } = await supabase
-      .from('hidden_events')
-      .select('event_key')
-      .eq('user_id', session.user.id);
-    const hiddenKeys = new Set<string>(hiddenData?.map(e => e.event_key) || []);
-    setHiddenEventKeys(hiddenKeys);
+          // Vérifier si l'abonnement existe déjà
+          const { data: existingSubs, error: selectError } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .eq('status', 'active');
 
-    await loadAllEvents(session.user.id, businessData?.address, hiddenKeys);
-    setLoading(false);
-    setTimeout(() => setIsVisible(true), 100);
-    } catch (error) {
-      console.error('❌ Erreur Dashboard checkUser:', error);
-      setLoading(false);
-    }
-  };
+          console.log('Abonnements existants:', existingSubs, selectError);
 
-  const loadData = async (userId: string): Promise<Business | null> => {
-    const { data: businessData } = await supabase
-      .from('businesses')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+          if (!existingSubs || existingSubs.length === 0) {
+            // Créer l'abonnement
+            const now = Date.now();
+            const { data: newSub, error: insertError } = await supabase
+              .from('subscriptions')
+              .insert({
+                user_id: session.user.id,
+                plan: 'monthly',
+                status: 'active',
+                current_period_start: new Date().toISOString(),
+                current_period_end: new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString(),
+                stripe_subscription_id: stripeSessionId
+              })
+              .select()
+              .single();
 
-    if (businessData) {
-      setBusiness(businessData);
-    }
+            console.log('Résultat insertion:', newSub, insertError);
 
-    // Charger les posts sauvegardés
-    const { data: postsData } = await supabase
-      .from('posts_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+            if (insertError) {
+              console.error('Erreur création abonnement:', insertError);
+              alert('Erreur création abonnement: ' + insertError.message);
+            }
+          }
 
-    if (postsData) {
-      setSavedPosts(postsData);
-    }
+          // Nettoyer l'URL
+          window.history.replaceState({}, '', '/dashboard');
+        }
 
-    // Charger les templates
-    const { data: templatesData } = await supabase
-      .from('post_templates')
-      .select('*')
-      .eq('user_id', userId)
-      .order('is_favorite', { ascending: false })
-      .order('use_count', { ascending: false });
+        // Vérifier l'abonnement
+        console.log('🔍 Vérification abonnement pour user:', session.user.id);
+        const { data: subDataArray, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('status', 'active');
 
-    if (templatesData) {
-      setTemplates(templatesData);
-    }
+        console.log('📋 Résultat abonnement:', subDataArray, subError);
 
-    return businessData;
-  };
+        if (subError) {
+          console.error('❌ Erreur Supabase subscriptions:', subError);
+          // En cas d'erreur Supabase, on continue quand même pour éviter le blocage
+        }
 
-  // Charger les événements masqués
-  const _loadHiddenEvents = async (userId: string) => {
-    const { data } = await supabase
-      .from('hidden_events')
-      .select('event_key')
-      .eq('user_id', userId);
+        const subData = subDataArray && subDataArray.length > 0 ? subDataArray[0] : null;
 
-    if (data) {
-      setHiddenEventKeys(new Set(data.map(e => e.event_key)));
-    }
-  };
-  void _loadHiddenEvents;
+        if (!subData) {
+          // Pas d'abonnement actif, rediriger vers pricing
+          console.log('⚠️ Pas d\'abonnement actif, redirection vers pricing');
+          navigate('/pricing');
+          return;
+        }
+
+        // Vérifier si l'abonnement n'a pas expiré
+        if (new Date(subData.current_period_end) < new Date()) {
+          console.log('⚠️ Abonnement expiré');
+          navigate('/pricing');
+          return;
+        }
+
+        console.log('✅ Abonnement valide, chargement des données...');
+        setSubscription(subData);
+        const businessData = await loadData(session.user.id);
+        console.log('🏪 Business chargé:', businessData?.business_name, '- Adresse:', businessData?.address);
+
+        // Charger les événements masqués d'abord
+        const { data: hiddenData } = await supabase
+          .from('hidden_events')
+          .select('event_key')
+          .eq('user_id', session.user.id);
+        const hiddenKeys = new Set<string>(hiddenData?.map(e => e.event_key) || []);
+        setHiddenEventKeys(hiddenKeys);
+
+        await loadAllEvents(session.user.id, businessData?.address, hiddenKeys);
+        setLoading(false);
+        setTimeout(() => setIsVisible(true), 100);
+      } catch (err) {
+        console.error('❌ Erreur Dashboard checkUser:', err);
+        setLoading(false);
+      }
+    };
+
+    checkUser();
+  }, [navigate]);
 
   // Masquer un événement suggéré
   const hideEvent = async (eventKey: string) => {
@@ -310,117 +408,6 @@ function Dashboard() {
 
   const closeConfirmModal = () => {
     setConfirmModal({ show: false, title: '', message: '', onConfirm: () => {} });
-  };
-
-  // Générer une clé unique pour un événement
-  const generateEventKey = (event: AutoEvent): string => {
-    const dateStr = event.date.toISOString().split('T')[0];
-    const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    return `${titleSlug}-${dateStr}`;
-  };
-
-  // Charger tous les événements (auto + manuels + locaux)
-  const loadAllEvents = async (userId: string, businessAddress?: string, hiddenKeys?: Set<string>) => {
-    // 1. Événements auto-générés (fêtes, jours fériés nationaux)
-    const upcoming = getUpcomingEvents(60);
-    const autoEventsData = upcoming.filter(e => e.suggestPost);
-
-    // 2. Événements manuels de l'utilisateur
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 60);
-
-    const { data: manualEvents } = await supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('event_date', today.toISOString().split('T')[0])
-      .lte('event_date', futureDate.toISOString().split('T')[0])
-      .order('event_date', { ascending: true });
-
-    // 3. Convertir les événements manuels au format AutoEvent
-    const manualEventsFormatted: AutoEvent[] = (manualEvents || []).map(event => {
-      const eventDate = new Date(event.event_date);
-      const timeDiff = eventDate.getTime() - today.getTime();
-      const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-      // Icône selon le type
-      const iconMap: Record<string, string> = {
-        'Promotion': '🏷️',
-        'Événement': '🎉',
-        'Fête': '🎊',
-        'Nouveau produit': '✨',
-        'Soirée': '🌙',
-        'Jeu concours': '🎁',
-        'Anniversaire': '🎂'
-      };
-
-      return {
-        id: event.id,
-        date: eventDate,
-        title: event.title,
-        type: event.event_type || 'Événement',
-        icon: iconMap[event.event_type] || '📌',
-        description: event.description || '',
-        suggestPost: true,
-        daysUntil: daysUntil,
-        isManual: true,
-        post_id: event.post_id
-      };
-    });
-
-    // 4. Événements locaux (OpenAgenda) si adresse disponible
-    let localEventsFormatted: AutoEvent[] = [];
-    console.log('🗺️ Adresse business pour événements locaux:', businessAddress);
-    if (businessAddress) {
-      try {
-        console.log('🗺️ Recherche événements locaux...');
-        const localEvents = await getAllLocalEvents(businessAddress, {
-          limit: 10,
-          fromDate: today,
-          toDate: futureDate
-        });
-        console.log('🗺️ Événements locaux trouvés:', localEvents.length, localEvents);
-
-        localEventsFormatted = localEvents.map(event => {
-          const eventDate = new Date(event.event_date);
-          const timeDiff = eventDate.getTime() - today.getTime();
-          const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-
-          return {
-            id: event.id,
-            date: eventDate,
-            title: event.title,
-            type: 'Local',
-            icon: '📍',
-            description: event.description || '',
-            suggestPost: true,
-            daysUntil: daysUntil,
-            isLocal: true,
-            city: event.city
-          };
-        });
-      } catch (error) {
-        console.error('Erreur chargement événements locaux:', error);
-      }
-    }
-
-    // 5. Combiner, filtrer les masqués, et trier par date
-    const allEvents = [...autoEventsData, ...manualEventsFormatted, ...localEventsFormatted]
-      .filter(event => {
-        // Ne pas filtrer les événements manuels (ils peuvent être supprimés autrement)
-        if ((event as any).isManual) return true;
-        // Filtrer les événements suggérés masqués
-        const dateStr = event.date.toISOString().split('T')[0];
-        const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]/g, '-');
-        const eventKey = `${titleSlug}-${dateStr}`;
-        return !hiddenKeys?.has(eventKey);
-      })
-      .sort((a, b) => a.daysUntil - b.daysUntil)
-      .slice(0, 8);
-
-    setAutoEvents(allEvents);
   };
 
   // Générer les tips personnalisés selon le commerce
@@ -1994,7 +1981,9 @@ function Dashboard() {
                 {(() => {
                   const storedDate = localStorage.getItem(`aina_tips_date_${user?.id}`);
                   if (storedDate) {
-                    const daysElapsed = Math.floor((Date.now() - parseInt(storedDate)) / (24 * 60 * 60 * 1000));
+                    // eslint-disable-next-line react-hooks/purity
+                    const now = Date.now();
+                    const daysElapsed = Math.floor((now - parseInt(storedDate)) / (24 * 60 * 60 * 1000));
                     const daysRemaining = Math.max(0, 15 - daysElapsed);
                     return (
                       <div style={{
@@ -2717,7 +2706,7 @@ function Dashboard() {
                         setSavedPosts(savedPosts.filter(p => p.id !== selectedPost.id));
                         setShowPostModal(false);
                         closeConfirmModal();
-                      } catch (error) {
+                      } catch {
                         alert('Erreur lors de la suppression');
                       }
                     }

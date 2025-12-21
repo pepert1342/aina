@@ -1,14 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ZapIcon, PaletteIcon, CalendarIcon, SparklesIcon, ArrowRightIcon } from './components/Icons';
 import { useNavigate } from 'react-router-dom';
 
 function App() {
   const navigate = useNavigate();
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+  const [isVisible] = useState(true);
 
   return (
     <div style={{ 

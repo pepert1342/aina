@@ -114,7 +114,7 @@ function Onboarding() {
         setLoading(true);
         const url = await uploadToStorage(file, 'logos');
         setLogo(url);
-      } catch (err: any) {
+      } catch {
         // Fallback to base64 if storage fails
         const reader = new FileReader();
         reader.onloadend = () => setLogo(reader.result as string);
@@ -135,7 +135,7 @@ function Onboarding() {
         try {
           const url = await uploadToStorage(file, 'photos');
           newPhotos.push(url);
-        } catch (err) {
+        } catch {
           // Fallback to base64
           const reader = new FileReader();
           reader.onloadend = () => {

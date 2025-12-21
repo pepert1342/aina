@@ -204,7 +204,7 @@ function CalendarPage() {
       const postIds = data.filter(e => e.post_id).map(e => e.post_id);
 
       // Charger les posts associés si il y en a
-      let postsMap: Record<string, any> = {};
+      const postsMap: Record<string, any> = {};
       if (postIds.length > 0) {
         const { data: postsData } = await supabase
           .from('posts_history')
