@@ -1,4 +1,6 @@
 // server/index.js - Backend pour Imagen 3 + Stripe
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { GoogleAuth } = require('google-auth-library');
@@ -7,36 +9,29 @@ const Stripe = require('stripe');
 const app = express();
 app.use(cors());
 
-// Stripe configuration
-const STRIPE_SECRET_KEY = 'sk_test_51Sa51O7zjlETwK15TJTdWIH100jg8aKfBszdWnSgL972N4Kbhqeg2pgdvOI1lpmtKghdGLSijqsFAfSbvJpk0xoh00phWe9xi6';
+// Stripe configuration - depuis les variables d'environnement
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 const STRIPE_PRICES = {
-  monthly: 'price_1Sa55Z7zjlETwK15FYLLGruq',
-  yearly: 'price_1Sa56E7zjlETwK15pwkpfOjb'
+  monthly: process.env.STRIPE_PRICE_MONTHLY || 'price_1Sa55Z7zjlETwK15FYLLGruq',
+  yearly: process.env.STRIPE_PRICE_YEARLY || 'price_1Sa56E7zjlETwK15pwkpfOjb'
 };
 
 // Webhook needs raw body
 app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 
-// Configuration Google Cloud
-const PROJECT_ID = 'gen-lang-client-0402380168';
-const LOCATION = 'us-central1';
+// Configuration Google Cloud - depuis les variables d'environnement
+const PROJECT_ID = process.env.GOOGLE_PROJECT_ID;
+const LOCATION = process.env.GOOGLE_LOCATION || 'us-central1';
 
-// Credentials du Service Account
+// Credentials du Service Account depuis les variables d'environnement
 const credentials = {
-  "type": "service_account",
-  "project_id": "gen-lang-client-0402380168",
-  "private_key_id": "eddd8213d74757758ca22ff2141951d5a5d072bb",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDR1D1N0e+GiFx4\nElwGAK6weXy6Jb1yHxqWNinSTPaplaUlLi6X7cU9X3ElUI1l5ZnBGTRfY5TLE5L4\n4JPaEHfv5T/0hG5B+9/XPWIxttAaHBafn+nZDvj0LIYWBfv0pNzaV1fYMckGu6V+\ntJqhJsWefuls2m894EWbGzyUGlC1C/FKQB2C8pve0Ii7iKGqOgU5srNo/3Flwenx\n1Z8MLun+YIklzBDPeErY8HWWrYuVAwS9/vvikc8Pvdp3EQfOvcUpzdtePZf8mm2U\nnL+oLfECzMu0r1Yen5qgX2DL5z3BStBi3POfQswf7dBK7apaANY0mOY/WxZguBfq\nXE8Vo9TRAgMBAAECggEAW1w04QhSaVpAIMulo7tyVEZhR0+dX+4pDlRA+18lWwtc\nH4cvJFmTsrg2tI+RMVe6DXii9BGQvKcmLBTka2MWRa6knRt4QmSfvsDsW0cE7wlh\n1Fi1YhwBy5cDPt2WKZwKyUqUZf6vT64uTa/nT9lo3CzYB9xH6UIYLIO8aaPXliv1\nxDyJxjsxFEjgX9Qyb/mNn+pcvSKO8mVOuFTut6vzOiiiqLzWJzKXtti/isORGdQe\nYsNINrRRqPI3GNtXMIVcJHdT4LuwPoFC5dIvJWZisT6N8hkutMApngv8E3YgnZs8\nT4XPnVe9c/enDwwYQyL5Sr9GZECvOCSeNvAj0Je9fQKBgQD296S9Tc6dv9sKl1my\ngFi+7a31eiC6WqgErcVhbonmGRvZLzi3IukLfOt7wGcjJYovlmUj7kFZA7H54uWH\nODQHcFMW4mZYgS3Z2z8+NT6ao0b1UIbLKwKD3hfd5AES0T/pOYQxgPxW4xVNkqgE\nf2KYffJEb3LTRB67jxUnOKWzdwKBgQDZgN6yiBT0KIp1Ivwpl9DqDrCcYmkUrb35\nIcKAsuRWJ1poqe/mj6x+xADT38+JoE9/0cYwidhwHVOV6KsBA/LjryrLA7Cyqikp\ne8slWhaWLB+LHXHAYIvHmh4m5Aof4yJPaWttNhB18KjKkyNNa6FeRfk4zkF/L562\nqHcMJyL79wKBgE1mASgeyWEg7oncMw1BMg7sODeVhcpBfSSyPQiy9t65AcRIC1NB\nyp2CEd7fxrL6IduWG65uDebSxKVW2a5OC+hE6JVkcMTN/0umbaSWVT9ramKZURU9\nLnWbVgmBWmDGWWxDTU2iafLlChkcnDGEpqa52gJelzLkx2jqh6uaEjwzAoGAalPL\nim9n/uwKs7TEnPiwkptXzzt0rz04T6AnW48YfN2EHwJkWswFwXrEBM+2v0r1UkEU\nqAnbGwPbJr+1SSvLA29Qdip5qP3yXWs9JidiP0uWqAVe5HLOIme/MbftEyWQUk3w\nzFTPuzhI667+ZQymuFVwvkpmTmzTI+w7Nl+zhIUCgYAidczfrxuZezox3Ug2lkes\nCUvS6j5rgwpmdEiKbp/f6HCuM0dKmTNRa934Ou5WSTXIHWrhZ3Y3haNct9Trbuxw\nU6MCZdo5J0fBdj6l+lTt1mToesgtJylK41yCpkAtwWxwRMANNSo4KbYL0vIw6mMr\nksWVmImxffyGhomEIsfQJA==\n-----END PRIVATE KEY-----\n",
-  "client_email": "aina-backend@gen-lang-client-0402380168.iam.gserviceaccount.com",
-  "client_id": "113766296137763425724",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/aina-backend%40gen-lang-client-0402380168.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+  type: "service_account",
+  project_id: process.env.GOOGLE_PROJECT_ID,
+  private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  client_email: process.env.GOOGLE_CLIENT_EMAIL,
 };
 
 // Créer le client d'authentification

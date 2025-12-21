@@ -12,6 +12,15 @@ build/
 .env
 .env.local
 .env.*.local
+!.env.example
+
+# Credentials / Secrets
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+*serviceaccount*.json
+*secret*.json
 
 # IDE
 .vscode/
