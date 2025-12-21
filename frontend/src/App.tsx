@@ -1,10 +1,54 @@
-import { useState } from 'react';
-import { ZapIcon, PaletteIcon, CalendarIcon, SparklesIcon, ArrowRightIcon } from './components/Icons';
+import { useState, useEffect } from 'react';
+import { ZapIcon, PaletteIcon, CalendarIcon, SparklesIcon, ArrowRightIcon, DownloadIcon } from './components/Icons';
 import { useNavigate } from 'react-router-dom';
+
+// Interface pour l'événement d'installation PWA
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 function App() {
   const navigate = useNavigate();
   const [isVisible] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Vérifier si l'app est déjà installée
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    // Écouter l'événement beforeinstallprompt
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    // Écouter quand l'app est installée
+    window.addEventListener('appinstalled', () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   return (
     <div style={{ 
@@ -39,7 +83,30 @@ function App() {
           </span>
         </div>
         
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Bouton Installer l'app */}
+          {installPrompt && !isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              style={{
+                padding: '10px 14px',
+                background: 'linear-gradient(135deg, #10B981, #34D399)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+              }}
+            >
+              <DownloadIcon size={16} color="white" />
+              Installer
+            </button>
+          )}
           <button
             onClick={() => navigate('/login')}
             style={{
@@ -325,28 +392,55 @@ function App() {
         }}>
           Rejoignez des centaines de commerces
         </p>
-        <button
-          onClick={() => navigate('/login')}
-          style={{
-            width: '100%',
-            maxWidth: '280px',
-            padding: '16px 32px',
-            backgroundColor: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            color: '#1a3a5c',
-            fontWeight: '700',
-            fontSize: '16px',
-            cursor: 'pointer',
-            boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}>
-            Démarrer maintenant
-            <ArrowRightIcon size={18} color="#1a3a5c" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              width: '100%',
+              maxWidth: '280px',
+              padding: '16px 32px',
+              backgroundColor: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              color: '#1a3a5c',
+              fontWeight: '700',
+              fontSize: '16px',
+              cursor: 'pointer',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}>
+              Démarrer maintenant
+              <ArrowRightIcon size={18} color="#1a3a5c" />
           </button>
+
+          {/* Bouton Télécharger l'app */}
+          {installPrompt && !isInstalled && (
+            <button
+              onClick={handleInstallClick}
+              style={{
+                width: '100%',
+                maxWidth: '280px',
+                padding: '14px 32px',
+                backgroundColor: 'transparent',
+                border: '2px solid white',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}>
+                <DownloadIcon size={18} color="white" />
+                Télécharger l'application
+            </button>
+          )}
+        </div>
       </section>
 
       {/* Réseaux sociaux */}
